@@ -1,32 +1,33 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ *	Copyright 2008-2013 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy 
+ *	of this software and associated documentation files (the "Software"), to 
+ *	deal in the Software without restriction, including without limitation the 
+ *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+ *	sell copies of the Software, and to permit persons to whom the Software is 
+ *	furnished to do so, subject to the following conditions:
+ *	
+ *	The above copyright notice and this permission notice shall be included in 
+ *	all copies or substantial portions of the Software.
+ *	
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *	IN THE SOFTWARE.
+ *****************************************************************************/
+
 #pragma once 
 
 #include <aerospike/as_status.h>
-#include <aerospike/as_string.h>
 
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /******************************************************************************
  *	MACROS
@@ -135,14 +136,6 @@ typedef struct as_error_s {
 #define as_error_update(__err, __code, __fmt, ...) \
 	as_error_setallv( __err, __code, __func__, __FILE__, __LINE__, __fmt, ##__VA_ARGS__ );
 
-/**
- *	as_error_set_message(&as->error, AEROSPIKE_ERR, "error message");
- *
- *	@ingroup as_error_object
- */
-#define as_error_set_message(__err, __code, __msg) \
-	as_error_setall( __err, __code, __msg, __func__, __FILE__, __LINE__ );
-
 /******************************************************************************
  *	FUNCTIONS
  *****************************************************************************/
@@ -194,7 +187,8 @@ static inline as_status as_error_reset(as_error * err) {
  */
 static inline as_status as_error_setall(as_error * err, as_status code, const char * message, const char * func, const char * file, uint32_t line) {
 	err->code = code;
-	as_strncpy(err->message, message, AS_ERROR_MESSAGE_MAX_SIZE);
+	strncpy(err->message, message, AS_ERROR_MESSAGE_MAX_LEN);
+	err->message[AS_ERROR_MESSAGE_MAX_LEN] = '\0';
 	err->func = func;
 	err->file = file;
 	err->line = line;
@@ -239,28 +233,3 @@ static inline as_status as_error_set(as_error * err, as_status code, const char 
 	err->code = code;
 	return err->code;
 }
-
-/**
- *	Copy error from source to target.
- *
- *	@relates as_error
- */
-static inline void as_error_copy(as_error * trg, const as_error * src) {
-	trg->code = src->code;
-	strcpy(trg->message, src->message);
-	trg->func = src->func;
-	trg->file = src->file;
-	trg->line = src->line;
-}
-
-/**
- *	Return string representation of error code.  Result should not be freed.
- *
- *	@relates as_error
- */
-char*
-as_error_string(as_status status);
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif

@@ -1,21 +1,26 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ *      Copyright 2008-2013 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-#pragma once 
+ *      Permission is hereby granted, free of charge, to any person obtaining a copy 
+ *      of this software and associated documentation files (the "Software"), to 
+ *      deal in the Software without restriction, including without limitation the 
+ *      rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+ *      sell copies of the Software, and to permit persons to whom the Software is 
+ *      furnished to do so, subject to the following conditions:
+ *      
+ *      The above copyright notice and this permission notice shall be included in 
+ *      all copies or substantial portions of the Software.
+ *      
+ *      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ *      FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *      IN THE SOFTWARE.
+ *****************************************************************************/
 
+#pragma once 
 #pragma GCC diagnostic ignored "-Waddress"
 
 #include <aerospike/as_bin.h>
@@ -24,10 +29,6 @@
 #include <aerospike/as_status.h>
 #include <stdint.h>
 #include <stdbool.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*****************************************************************************
  *	STRUCTURES
@@ -119,22 +120,20 @@ typedef struct as_batch_read_s {
  *	release the batch and associated resources.
  *	
  *	@param __batch		The query to initialize.
- *	@param __size		The number of keys to allocate.
+ *	@param __capacity	The number of keys to allocate.
  *
  *	@relates as_batch
  *	@ingroup batch_object
  */
 #define as_batch_inita(__batch, __size) \
-	do { \
-		if ( (__batch) != NULL ) {\
-			(__batch)->_free = false;\
-			(__batch)->keys.entries = (as_key*) alloca(sizeof(as_key) * (__size));\
-			if ( (__batch)->keys.entries ) { \
-				(__batch)->keys._free = false;\
-				(__batch)->keys.size = (__size);\
-			}\
-	 	} \
-	} while(0)
+	if ( (__batch) != NULL ) {\
+		(__batch)->_free = false;\
+		(__batch)->keys.entries = (as_key *) alloca(sizeof(as_key) * __size);\
+		if ( (__batch)->keys.entries ) { \
+			(__batch)->keys._free = false;\
+			(__batch)->keys.size = __size;\
+		}\
+ 	}
 
 /*********************************************************************************
  *	INSTANCE FUNCTIONS
@@ -153,7 +152,7 @@ typedef struct as_batch_read_s {
  *	When the batch is no longer needed, then use as_batch_destroy() to
  *	release the batch and associated resources.
  *	
- *	@param size			The number of keys to allocate.
+ *	@param capacity		The number of keys to allocate.
  *
  *	@relates as_batch
  *	@ingroup batch_object
@@ -174,7 +173,7 @@ as_batch * as_batch_new(uint32_t size);
  *	release the batch and associated resources.
  *	
  *	@param batch		The batch to initialize.
- *	@param size			The number of keys to allocate.
+ *	@param capacity		The number of keys to allocate.
  *	
  *	@relates as_batch
  *	@ingroup batch_object
@@ -211,7 +210,3 @@ static inline as_key * as_batch_keyat(const as_batch * batch, uint32_t i)
 {
 	return (batch != NULL && batch->keys.entries != NULL && batch->keys.size > i) ? &batch->keys.entries[i] : NULL;
 }
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif

@@ -1,23 +1,27 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ *	Copyright 2008-2013 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-#pragma once
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy 
+ *	of this software and associated documentation files (the "Software"), to 
+ *	deal in the Software without restriction, including without limitation the 
+ *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+ *	sell copies of the Software, and to permit persons to whom the Software is 
+ *	furnished to do so, subject to the following conditions:
+ *	
+ *	The above copyright notice and this permission notice shall be included in 
+ *	all copies or substantial portions of the Software.
+ *	
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *	IN THE SOFTWARE.
+ *****************************************************************************/
 
 /** 
- *	@defgroup udf_operations UDF Operations
+ *	@defgroup udf_operations UDF Operations (3.0 only)
  *	@ingroup client_operations
  *
  *	The UDF API provides the ability to manage UDFs in the cluster.
@@ -30,15 +34,13 @@
  *
  */
 
+#pragma once 
+
 #include <aerospike/aerospike.h>
 #include <aerospike/as_error.h>
 #include <aerospike/as_policy.h>
 #include <aerospike/as_status.h>
 #include <aerospike/as_udf.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /******************************************************************************
  *	FUNCTIONS
@@ -151,33 +153,6 @@ as_status aerospike_udf_put(
 	);
 
 /**
- *	Wait for asynchronous udf put to complete using given polling interval.
- *
- *	~~~~~~~~~~{.c}
- *	as_bytes content;
- *	as_bytes_init(&content);
- *
- *	if (aerospike_udf_put(&as, &err, NULL, "my.lua", AS_UDF_TYPE_LUA, &content) == AEROSPIKE_OK ) {
- *	    aerospike_udf_put_wait(&as, &err, NULL, "my.lua", 0);
- *	}
- *	as_bytes_destroy(&content);
- *	~~~~~~~~~~
- *
- *	@param as			The aerospike instance to use for this operation.
- *	@param err			The as_error to be populated if an error occurs.
- *	@param policy		The policy to use for this operation. If NULL, then the default policy will be used.
- *	@param filename		The name of the UDF file.
- *	@param interval_ms	The polling interval in milliseconds. If zero, 1000 ms is used.
- *
- *	@return AEROSPIKE_OK if successful. Otherwise an error occurred.
- *
- *	@ingroup udf_operations
- */
-as_status aerospike_udf_put_wait(
-	aerospike * as, as_error * err, const as_policy_info * policy,
-	const char * filename, uint32_t interval_ms);
-
-/**
  *	Remove a UDF file from the cluster.
  *
  *	~~~~~~~~~~{.c}
@@ -199,7 +174,3 @@ as_status aerospike_udf_remove(
 	aerospike * as, as_error * err, const as_policy_info * policy, 
 	const char * filename
 	);
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif

@@ -1,37 +1,59 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ * Copyright 2008-2014 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *****************************************************************************/
 #pragma once
 
 #include <aerospike/as_config.h>
 #include <aerospike/as_node.h>
 #include <aerospike/as_partition.h>
-#include <aerospike/as_policy.h>
-#include <aerospike/as_thread_pool.h>
+#include <citrusleaf/cf_atomic.h>
+#include <citrusleaf/cl_types.h>
+#include "ck_pr.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-	
-// Concurrency kit needs to be under extern "C" when compiling C++.
-#include <aerospike/ck/ck_pr.h>
+/******************************************************************************
+ *	MACROS
+ *****************************************************************************/
+
+#define AS_NUM_BATCH_THREADS 6
+#define AS_NUM_SCAN_THREADS	5
+#define AS_NUM_QUERY_THREADS 5
 
 /******************************************************************************
  *	TYPES
  *****************************************************************************/
+
+/**
+ * Seed host.
+ */
+typedef struct as_seed_s {
+	/**
+	 * Host name.
+	 */
+	char* name;
+	
+	/**
+	 * Host port.
+	 */
+	in_port_t port;
+} as_seed;
 
 /**
  *	@private
@@ -96,18 +118,30 @@ typedef struct as_cluster_s {
 	 *	Hints for best node for a partition.
 	 */
 	as_partition_tables* partition_tables;
-		
+	
+	/**
+	 *	@private
+	 *	Batch process queue.
+	 */
+	cf_queue* batch_q;
+	
+	/**
+	 *	@private
+	 *	Scan process queue.
+	 */
+	cf_queue* scan_q;
+	
+	/**
+	 *	@private
+	 *	Query process queue.
+	 */
+	cf_queue* query_q;
+	
 	/**
 	 *	@private
 	 *	Nodes to be garbage collected.
 	 */
 	as_vector* /* <as_gc_item> */ gc;
-	
-	/**
-	 *	@private
-	 *	Shared memory implementation of cluster.
-	 */
-	struct as_shm_info_s* shm_info;
 	
 	/**
 	 *	@private
@@ -123,16 +157,22 @@ typedef struct as_cluster_s {
 	
 	/**
 	 *	@private
-	 *	Expected cluster name for all nodes.  May be null.
+	 *	Initial seed nodes specified by user.
 	 */
-	char* cluster_name;
+	as_seed* seeds;
 	
 	/**
 	 *	@private
-	 *	Initial seed hosts specified by user.
+	 *	Length of seeds array.
 	 */
-	as_vector* /* <as_host> */ seeds;
-
+	uint32_t seeds_size;
+	
+	/**
+	 *	@private
+	 *	Length of ip_map array.
+	 */
+	uint32_t ip_map_size;
+	
 	/**
 	 *	@private
 	 *	A IP translation table is used in cases where different clients use different server
@@ -142,99 +182,14 @@ typedef struct as_cluster_s {
 	 *	The key is the IP address returned from friend info requests to other servers.  The
 	 *	value is the real IP address used to connect to the server.
 	 */
-	as_vector* /* <as_addr_map> */ ip_map;
-
-	/**
-	 *	@private
-	 *	TLS parameters
-	 */
-	as_tls_context tls_ctx;
+	as_addr_map* ip_map;
 	
 	/**
 	 *	@private
-	 *	Pool of threads used to query server nodes in parallel for batch, scan and query.
+	 *	Size of node's synchronous connection pool.
 	 */
-	as_thread_pool thread_pool;
-		
-	/**
-	 *	@private
-	 *	Cluster tend thread.
-	 */
-	pthread_t tend_thread;
+	uint32_t conn_queue_size;
 	
-	/**
-	 *	@private
-	 *	Lock for the tend thread to wait on with the tend interval as timeout.
-	 *	Normally locked, resulting in waiting a full interval between
-	 *	tend iterations.  Upon cluster shutdown, unlocked by the main
-	 *	thread, allowing a fast termination of the tend thread.
-	 */
-	pthread_mutex_t tend_lock;
-	
-	/**
-	 *	@private
-	 *	Tend thread identifier to be used with tend_lock.
-	 */
-	pthread_cond_t tend_cond;
-
-	/**
-	 *	@private
-	 *	Configuration version.  Incremented, when the configuration is changed.
-	 */
-	uint32_t version;
-	
-	/**
-	 *	@private
-	 *	Milliseconds between cluster tends.
-	 */
-	uint32_t tend_interval;
-
-	/**
-	 *	@private
-	 *	Maximum number of synchronous connections allowed per server node.
-	 */
-	uint32_t max_conns_per_node;
-	
-	/**
-	 *	@private
-	 *	Maximum number of asynchronous (non-pipeline) connections allowed for each node.
-	 *	Async transactions will be rejected if the maximum async node connections would be exceeded.
-	 *	This variable is ignored if asynchronous event loops are not created.
-	 */
-	uint32_t async_max_conns_per_node;
-	
-	/**
-	 *	@private
-	 *	Maximum number of pipeline connections allowed for each node.
-	 *	Pipeline transactions will be rejected if the maximum pipeline node connections would be exceeded.
-	 *	This variable is ignored if asynchronous event loops are not created.
-	 */
-	uint32_t pipe_max_conns_per_node;
-	
-	/**
-	 *	@private
-	 *	Number of synchronous connection pools used for each node.
-	 */
-	uint32_t conn_pools_per_node;
-
-	/**
-	 *	@private
-	 *	Number of pending async commands (i.e., commands with an outstanding reply).
-	 */
-	uint32_t async_pending;
-
-	/**
-	 *	@private
-	 *	Number of active async pipeline and non-pipeline connections combined.
-	 */
-	uint32_t async_conn_count;
-
-	/**
-	 *	@private
-	 *	Number of async connections in the pools.
-	 */
-	uint32_t async_conn_pool;
-
 	/**
 	 *	@private
 	 *	Initial connection timeout in milliseconds.
@@ -249,27 +204,75 @@ typedef struct as_cluster_s {
 	
 	/**
 	 *	@private
+	 *	Milliseconds between cluster tends.
+	 */
+	uint32_t tend_interval;
+	
+	/**
+	 *	@private
 	 *	Random node index.
 	 */
 	uint32_t node_index;
 	
 	/**
 	 *	@private
-	 *	Total number of data partitions used by cluster.
+	 *	Batch initialize indicator.
 	 */
-	uint16_t n_partitions;
+	uint32_t batch_initialized;
 	
 	/**
 	 *	@private
-	 *	If "services-alternate" should be used instead of "services"
+	 *	Scan initialize indicator.
 	 */
-	bool use_services_alternate;
+	uint32_t scan_initialized;
+	
+	/**
+	 *	@private
+	 *	Query initialize indicator.
+	 */
+	uint32_t query_initialized;
+	
+	/**
+	 *	@private
+	 *	Total number of data partitions used by cluster.
+	 */
+	cl_partition_id	n_partitions;
 	
 	/**
 	 *	@private
 	 *	Should continue to tend cluster.
 	 */
 	volatile bool valid;
+	
+	/**
+	 *	@private
+	 *	Batch transaction lock.
+	 */
+	pthread_mutex_t	batch_init_lock;
+	
+	/**
+	 *	@private
+	 *	Cluster tend thread.
+	 */
+	pthread_t tend_thread;
+	
+	/**
+	 *	@private
+	 *	Batch process threads.
+	 */
+	pthread_t batch_threads[AS_NUM_BATCH_THREADS];
+	
+	/**
+	 *	@private
+	 *	Scan process threads.
+	 */
+	pthread_t scan_threads[AS_NUM_SCAN_THREADS];
+	
+	/**
+	 *	@private
+	 *	Query process threads.
+	 */
+	pthread_t query_threads[AS_NUM_QUERY_THREADS];
 } as_cluster;
 
 /******************************************************************************
@@ -279,8 +282,8 @@ typedef struct as_cluster_s {
 /**
  *	Create and initialize cluster.
  */
-as_status
-as_cluster_create(as_config* config, as_error* err, as_cluster** cluster);
+as_cluster*
+as_cluster_create(as_config* config);
 
 /**
  *	Close all connections and release memory associated with cluster.
@@ -327,12 +330,6 @@ as_nodes_release(as_nodes* nodes)
 		cf_free(nodes);
 	}
 }
-
-/**
- * 	Change maximum async connections per node.
- */
-void
-as_cluster_set_async_max_conns_per_node(as_cluster* cluster, uint32_t async_size, uint32_t pipe_size);
 
 /**
  *	@private
@@ -409,15 +406,7 @@ as_cluster_get_partition_table(as_cluster* cluster, const char* ns)
  *	as_nodes_release() must be called when done with node.
  */
 as_node*
-as_partition_table_get_node(as_cluster* cluster, as_partition_table* table, const uint8_t* digest, as_policy_replica replica, bool master);
-
-/**
- *	@private
- *	Get shared memory mapped node given digest key.  If there is no mapped node, a random node is used instead.
- *	as_nodes_release() must be called when done with node.
- */
-as_node*
-as_shm_node_get(as_cluster* cluster, const char* ns, const uint8_t* digest, as_policy_replica replica, bool master);
+as_partition_table_get_node(as_cluster* cluster, as_partition_table* table, const cf_digest* d, bool write);
 
 /**
  *	@private
@@ -425,21 +414,8 @@ as_shm_node_get(as_cluster* cluster, const char* ns, const uint8_t* digest, as_p
  *	as_nodes_release() must be called when done with node.
  */
 static inline as_node*
-as_node_get(as_cluster* cluster, const char* ns, const uint8_t* digest, as_policy_replica replica, bool master)
+as_node_get(as_cluster* cluster, const char* ns, const cf_digest* d, bool write)
 {
-#ifdef AS_TEST_PROXY
-	return as_node_get_random(cluster);
-#else
-	if (cluster->shm_info) {
-		return as_shm_node_get(cluster, ns, digest, replica, master);
-	}
-	else {
-		as_partition_table* table = as_cluster_get_partition_table(cluster, ns);
-		return as_partition_table_get_node(cluster, table, digest, replica, master);
-	}
-#endif
+	as_partition_table* table = as_cluster_get_partition_table(cluster, ns);
+	return as_partition_table_get_node(cluster, table, d, write);
 }
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif

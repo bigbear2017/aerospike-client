@@ -1,34 +1,34 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ *	Copyright 2008-2013 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-#pragma once
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy 
+ *	of this software and associated documentation files (the "Software"), to 
+ *	deal in the Software without restriction, including without limitation the 
+ *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+ *	sell copies of the Software, and to permit persons to whom the Software is 
+ *	furnished to do so, subject to the following conditions:
+ *	
+ *	The above copyright notice and this permission notice shall be included in 
+ *	all copies or substantial portions of the Software.
+ *	
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *	IN THE SOFTWARE.
+ *****************************************************************************/
+
+#pragma once 
 #pragma GCC diagnostic ignored "-Waddress"
 
-#include <aerospike/aerospike_index.h>
 #include <aerospike/as_bin.h>
 #include <aerospike/as_key.h>
 #include <aerospike/as_list.h>
-#include <aerospike/as_predexp.h>
 #include <aerospike/as_udf.h>
 
 #include <stdarg.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /******************************************************************************
  *	MACROS
@@ -38,79 +38,38 @@ extern "C" {
  *	Macro for setting setting the STRING_EQUAL predicate.
  *
  *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_string_equals("abc"));
+ *	as_query_where(query, "bin1", string_equals("abc"));
  *	~~~~~~~~~~
  *
  *	@relates as_query
  */
-#define as_string_equals(__val) AS_PREDICATE_EQUAL, AS_INDEX_TYPE_DEFAULT, AS_INDEX_STRING, __val
+#define string_equals(__val) AS_PREDICATE_STRING_EQUAL, __val
 
 /**
  *	Macro for setting setting the INTEGER_EQUAL predicate.
  *
  *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_integer_equals(123));
+ *	as_query_where(query, "bin1", integer_equals(123));
  *	~~~~~~~~~~
  *
  *	@relates as_query
  */
-#define as_integer_equals(__val) AS_PREDICATE_EQUAL, AS_INDEX_TYPE_DEFAULT, AS_INDEX_NUMERIC, (int64_t)__val
+#define integer_equals(__val) AS_PREDICATE_INTEGER_EQUAL, __val
 
 /**
  *	Macro for setting setting the INTEGER_RANGE predicate.
  *
  *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_integer_range(1,100));
+ *	as_query_where(query, "bin1", integer_range(1,100));
  *	~~~~~~~~~~
  *	
  *	@relates as_query
  *	@ingroup query_object
  */
-#define as_integer_range(__min, __max) AS_PREDICATE_RANGE, AS_INDEX_TYPE_DEFAULT, AS_INDEX_NUMERIC, (int64_t)__min, (int64_t)__max
-
-/**
- *	Macro for setting setting the RANGE predicate.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_range(LIST,NUMERIC,1,100));
- *	~~~~~~~~~~
- *	
- *	@relates as_query
- *	@ingroup query_object
- */
-#define as_range(indextype, datatype, __min, __max) AS_PREDICATE_RANGE, AS_INDEX_TYPE_ ##indextype, AS_INDEX_ ##datatype, __min, __max
-
-/**
- *	Macro for setting setting the CONTAINS predicate.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_contains(LIST,STRING,"val"));
- *	~~~~~~~~~~
- *	
- *	@relates as_query
- *	@ingroup query_object
- */
-#define as_contains(indextype, datatype, __val) AS_PREDICATE_EQUAL, AS_INDEX_TYPE_ ##indextype, AS_INDEX_ ##datatype, __val
-
-/**
- *	Macro for setting setting the EQUALS predicate.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_equals(NUMERIC,5));
- *	~~~~~~~~~~
- *	
- *	@relates as_query
- *	@ingroup query_object
- */
-#define as_equals(datatype, __val) AS_PREDICATE_EQUAL, AS_INDEX_TYPE_DEFAULT, AS_INDEX_ ##datatype, __val
-
-#define as_geo_within(__val) AS_PREDICATE_RANGE, AS_INDEX_TYPE_DEFAULT, AS_INDEX_GEO2DSPHERE, __val
-
-#define as_geo_contains(__val) AS_PREDICATE_RANGE, AS_INDEX_TYPE_DEFAULT, AS_INDEX_GEO2DSPHERE, __val
-
+#define integer_range(__min, __max) AS_PREDICATE_INTEGER_RANGE, __min, __max
 
 /******************************************************************************
- *	TYPES 	
+ *	TYPES
  *****************************************************************************/
 
 /**
@@ -156,9 +115,20 @@ typedef enum as_predicate_type_e {
 	 *	String Equality Predicate. 
 	 *	Requires as_predicate_value.string to be set.
 	 */
-	AS_PREDICATE_EQUAL,
+	AS_PREDICATE_STRING_EQUAL,
 
-	AS_PREDICATE_RANGE
+	/**
+	 *	Integer Equality Predicate.
+	 *	Requires as_predicate_value.integer to be set.
+	 */
+	AS_PREDICATE_INTEGER_EQUAL,
+
+	/**
+	 *	Integer Range Predicate.
+	 *	Requires as_predicate_value.integer_range to be set.
+	 */
+	AS_PREDICATE_INTEGER_RANGE
+
 } as_predicate_type;
 
 /**
@@ -173,7 +143,7 @@ typedef struct as_predicate_s {
 	as_bin_name bin;
 
 	/**
-	 *	The predicate type, dictates which values to use from the union
+	 *	The predicate type, dictates which value to use from the union
 	 */
 	as_predicate_type type;
 
@@ -182,16 +152,6 @@ typedef struct as_predicate_s {
 	 */
 	as_predicate_value value;
 
-	/*
-	 * The type of data user wants to query
-	 */
-
-	as_index_datatype dtype;
-
-	/*
-	 * The type of index predicate is on
-	 */
-	as_index_type itype;
 } as_predicate;
 
 /**
@@ -296,40 +256,6 @@ typedef struct as_query_predicates_s {
 	as_predicate * 	entries;
 
 } as_query_predicates;
-
-/**
- *	Sequence of predicate expressions to be applied to a query.
- *
- *	Entries can either be initialized on the stack or on the heap.
- *
- *	Initialization should be performed via a query object, using:
- *	-	as_query_predexp_init()
- *	-	as_query_predexp_inita()
- */
-typedef struct as_query_predexp_s {
-
-	/**
-	 *	@private
-	 *	If true, then as_query_destroy() will free this instance.
-	 */
-	bool _free;
-
-	/**
-	 *	Number of entries allocated
-	 */
-	uint16_t capacity;
-
-	/**
-	 *	Number of entries used
-	 */
-	uint16_t size;
-
-	/**
-	 *	Sequence of entries
-	 */
-	as_predexp_base ** entries;
-
-} as_query_predexp;
 
 /**
  *	Sequence of ordering to be applied to a query results.
@@ -440,13 +366,13 @@ typedef struct as_query_sort_s {
  *	you will want to use a UDF to process the result set on the server.
  *	
  *	~~~~~~~~~~{.c}
- *	as_query_where(query, "bin1", as_string_equals("abc"));
+ *	as_query_where(query, "bin1", string_equals("abc"));
  *	~~~~~~~~~~
  *
  *	The predicates that you can apply to a bin include:
- *	- as_string_equals() - Test for string equality.
- *	- as_integer_equals() - Test for integer equality.
- *	- as_integer_range() - Test for integer within a range.
+ *	- string_equals() - Test for string equality.
+ *	- integer_equals() - Test for integer equality.
+ *	- integer_range() - Test for integer within a range.
  *
  *	Before adding predicates, the where structure must be initialized. To
  *	initialize the where structure, you can choose to use one of the following:
@@ -459,7 +385,7 @@ typedef struct as_query_sort_s {
  *
  *	~~~~~~~~~~{.c}
  *	as_query_where_inita(query, 1);
- *	as_query_where(query, "bin1", as_string_equals("abc"));
+ *	as_query_where(query, "bin1", string_equals("abc"));
  *	~~~~~~~~~~
  *
  *
@@ -549,17 +475,6 @@ typedef struct as_query_s {
 	 *	Use as_query_where() to populate.
 	 */
 	as_query_predicates where;
-
-	/**
-	 *	Predicate Expressions for filtering.
-	 *	
-	 *	Use either of the following function to initialize:
-	 *	-	as_query_predexp_init() -	To initialize on the heap.
-	 *	-	as_query_predexp_inita() -	To initialize on the stack.
-	 *
-	 *	Use as_query_predexp() to populate.
-	 */
-	as_query_predexp predexp;
 
 	/**
 	 *	Bins to order by.
@@ -655,16 +570,14 @@ void as_query_destroy(as_query * query);
  *	@ingroup query_object
  */
 #define as_query_select_inita(__query, __n) \
-	do { \
-		if ( (__query) != NULL && (__query)->select.entries == NULL ) {\
-			(__query)->select.entries = (as_bin_name*) alloca(sizeof(as_bin_name) * (__n));\
-			if ( (__query)->select.entries ) { \
-				(__query)->select._free = false;\
-				(__query)->select.capacity = (__n);\
-				(__query)->select.size = 0;\
-			}\
-	 	} \
-	} while(0)
+	if ( (__query) != NULL && (__query)->select.entries == NULL ) {\
+		(__query)->select.entries = (as_bin_name *) alloca(__n * sizeof(as_bin_name));\
+		if ( (__query)->select.entries ) { \
+			(__query)->select._free = false;\
+			(__query)->select.capacity = __n;\
+			(__query)->select.size = 0;\
+		}\
+ 	}
 
 /** 
  *	Initializes `as_query.select` with a capacity of `n` using `malloc()`.
@@ -720,9 +633,9 @@ bool as_query_select(as_query * query, const char * bin);
  *
  *	~~~~~~~~~~{.c}
  *	as_query_where_inita(&query, 3);
- *	as_query_where(&query, "bin1", as_string_equals("abc"));
- *	as_query_where(&query, "bin2", as_integer_equals(123));
- *	as_query_where(&query, "bin3", as_integer_range(0,123));
+ *	as_query_where(&query, "bin1", string_equals("abc"));
+ *	as_query_where(&query, "bin2", integer_equals(123));
+ *	as_query_where(&query, "bin3", integer_range(0,123));
  *	~~~~~~~~~~
  *
  *	@param __query	The query to initialize.
@@ -733,16 +646,14 @@ bool as_query_select(as_query * query, const char * bin);
  *	@relates as_query
  */
 #define as_query_where_inita(__query, __n) \
-	do { \
-		if ( (__query)  != NULL && (__query)->where.entries == NULL ) {\
-			(__query)->where.entries = (as_predicate*) alloca(sizeof(as_predicate) * (__n));\
-			if ( (__query)->where.entries ) { \
-				(__query)->where._free = false;\
-				(__query)->where.capacity = (__n);\
-				(__query)->where.size = 0;\
-			}\
-	 	} \
-	} while(0)
+	if ( (__query)  != NULL && (__query)->where.entries == NULL ) {\
+		(__query)->where.entries = (as_predicate *) alloca(__n * sizeof(as_predicate));\
+		if ( (__query)->where.entries ) { \
+			(__query)->where._free = false;\
+			(__query)->where.capacity = __n;\
+			(__query)->where.size = 0;\
+		}\
+ 	}
 
 /** 
  *	Initializes `as_query.where` with a capacity of `n` using `malloc()`.
@@ -751,9 +662,9 @@ bool as_query_select(as_query * query, const char * bin);
  *
  *	~~~~~~~~~~{.c}
  *	as_query_where_init(&query, 3);
- *	as_query_where(&query, "bin1", as_string_equals("abc"));
- *	as_query_where(&query, "bin1", as_integer_equals(123));
- *	as_query_where(&query, "bin1", as_integer_range(0,123));
+ *	as_query_where(&query, "bin1", string_equals("abc"));
+ *	as_query_where(&query, "bin1", integer_equals(123));
+ *	as_query_where(&query, "bin1", integer_range(0,123));
  *	~~~~~~~~~~
  *
  *	@param query	The query to initialize.
@@ -768,111 +679,26 @@ bool as_query_where_init(as_query * query, uint16_t n);
 /**
  *	Add a predicate to the query.
  *
- *	You have to ensure as_query.where has sufficient capacity, prior to
+ *	You have to ensure as_query.where has sufficient capacity, prior to 
  *	adding a predicate. If capacity is insufficient then false is returned.
- *
- *	String predicates are not owned by as_query.  If the string is allocated
- *	on the heap, the caller is responsible for freeing the string after the query
- *	has been executed.  as_query_destroy() will not free this string predicate.
- *
+ *	
  *	~~~~~~~~~~{.c}
  *	as_query_where_init(&query, 3);
- *	as_query_where(&query, "bin1", as_string_equals("abc"));
- *	as_query_where(&query, "bin1", as_integer_equals(123));
- *	as_query_where(&query, "bin1", as_integer_range(0,123));
+ *	as_query_where(&query, "bin1", string_equals("abc"));
+ *	as_query_where(&query, "bin1", integer_equals(123));
+ *	as_query_where(&query, "bin1", integer_range(0,123));
  *	~~~~~~~~~~
  *
  *	@param query		The query add the predicate to.
  *	@param bin			The name of the bin the predicate will apply to.
  *	@param type			The type of predicate.
- *	@param itype		The type of index.
- *	@param dtype		The underlying data type that the index is based on.
  *	@param ... 			The values for the predicate.
  *	
  *	@return On success, true. Otherwise an error occurred.
  *
  *	@relates as_query
  */
-bool as_query_where(as_query * query, const char * bin, as_predicate_type type, as_index_type itype, as_index_datatype dtype, ... );
-
-/******************************************************************************
- *	PREDEXP FUNCTIONS
- *****************************************************************************/
-
-/** 
- *	Initializes `as_query.predexp` with a capacity of `n` using `alloca`
- *
- *	For heap allocation, use `as_query_predexp_init()`.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_predexp_inita(&query, 3);
- *	as_query_predexp_add(&query, as_predexp_string_value("apple"));
- *	as_query_predexp_add(&query, as_predexp_string_bin("fruit"));
- *	as_query_predexp_add(&query, as_predexp_string_equal());
- *	~~~~~~~~~~
- *	
- *	@param __query	The query to initialize.
- *	@param __n		The number of predicate expression slots to allocate.
- *
- *	@relates as_query
- *	@ingroup query_object
- */
-#define as_query_predexp_inita(__query, __n)							\
-	if ( (__query) != NULL && (__query)->predexp.entries == NULL ) {	\
-		(__query)->predexp.entries =									\
-			(as_predexp_base **)											\
-			alloca(__n * sizeof(as_predexp_base *));					\
-		if ( (__query)->predexp.entries ) {								\
-			(__query)->predexp._free = false;							\
-			(__query)->predexp.capacity = __n;							\
-			(__query)->predexp.size = 0;								\
-		}																\
-	}
-
-/** 
- *	Initializes `as_query.predexp` with a capacity of `n` using `malloc()`.
- *	
- *	For stack allocation, use `as_query_predexp_inita()`.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_predexp_init(&query, 3);
- *	as_query_predexp_add(&query, as_predexp_string_value("apple"));
- *	as_query_predexp_add(&query, as_predexp_string_bin("fruit"));
- *	as_query_predexp_add(&query, as_predexp_string_equal());
- *	~~~~~~~~~~
- *
- *	@param query	The query to initialize.
- *	@param n		The number of predicate expression slots to allocate.
- *
- *	@return On success, the initialized. Otherwise an error occurred.
- *
- *	@relates as_query
- *	@ingroup query_object
- */
-bool as_query_predexp_init(as_query * query, uint16_t n);
-
-/**
- *	Adds predicate expressions to a query.
- *
- *	You have to ensure as_query.predexp has sufficient capacity, prior to 
- *	adding a predexp. If capacity is sufficient then false is returned.
- *
- *	~~~~~~~~~~{.c}
- *	as_query_predexp_inita(&query, 3);
- *	as_query_predexp_add(&query, as_predexp_string_value("apple"));
- *	as_query_predexp_add(&query, as_predexp_string_bin("fruit"));
- *	as_query_predexp_add(&query, as_predexp_string_equal());
- *	~~~~~~~~~~
- *
- *	@param query 		The query to modify.
- *  @param predexp		Pointer to a constructed predicate expression.
- *
- *	@return On success, true. Otherwise an error occurred.
- *
- *	@relates as_query
- *	@ingroup query_object
- */
-bool as_query_predexp_add(as_query * query, as_predexp_base * predexp);
+bool as_query_where(as_query * query, const char * bin, as_predicate_type type, ... );
 
 /******************************************************************************
  *	ORDERBY FUNCTIONS
@@ -896,16 +722,14 @@ bool as_query_predexp_add(as_query * query, as_predexp_base * predexp);
  *	@relates as_query
  */
 #define as_query_orderby_inita(__query, __n) \
-	do { \
-		if ( (__query) != NULL && (__query)->orderby.entries == NULL  ) {\
-			(__query)->orderby.entries = (as_ordering*) alloca(sizeof(as_ordering) * (__n));\
-			if ( (__query)->orderby.entries ) { \
-				(__query)->orderby._free = false;\
-				(__query)->orderby.capacity = (__n);\
-				(__query)->orderby.size = 0;\
-			}\
-	 	} \
-	} while(0)
+	if ( (__query) != NULL && (__query)->orderby.entries == NULL  ) {\
+		(__query)->orderby.entries = (as_ordering *) alloca(__n * sizeof(as_ordering));\
+		if ( (__query)->orderby.entries ) { \
+			(__query)->orderby._free = false;\
+			(__query)->orderby.capacity = __n;\
+			(__query)->orderby.size = 0;\
+		}\
+ 	}
 
 /** 
  *	Initializes `as_query.orderby` with a capacity of `n` using `malloc()`.
@@ -968,7 +792,3 @@ bool as_query_orderby(as_query * query, const char * bin, as_order order);
  *	@relates as_query
  */
 bool as_query_apply(as_query * query, const char * module, const char * function, const as_list * arglist);
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif

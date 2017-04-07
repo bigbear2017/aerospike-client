@@ -1,30 +1,30 @@
-/*
- * Copyright 2008-2017 Aerospike, Inc.
+/******************************************************************************
+ *	Copyright 2008-2013 by Aerospike.
  *
- * Portions may be licensed to Aerospike, Inc. under one or more contributor
- * license agreements.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy 
+ *	of this software and associated documentation files (the "Software"), to 
+ *	deal in the Software without restriction, including without limitation the 
+ *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
+ *	sell copies of the Software, and to permit persons to whom the Software is 
+ *	furnished to do so, subject to the following conditions:
+ *	
+ *	The above copyright notice and this permission notice shall be included in 
+ *	all copies or substantial portions of the Software.
+ *	
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
+ *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *	IN THE SOFTWARE.
+ *****************************************************************************/
+
 #pragma once 
 
 #include <aerospike/as_error.h>
-#include <aerospike/as_host.h>
 #include <aerospike/as_policy.h>
 #include <aerospike/as_password.h>
-#include <aerospike/as_vector.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /******************************************************************************
  *	MACROS
@@ -64,9 +64,33 @@ extern "C" {
  */
 #define AS_CONFIG_PATH_MAX_LEN 	(AS_CONFIG_PATH_MAX_SIZE - 1)
 
+/**
+ * The size of as_config.hosts
+ */
+#define AS_CONFIG_HOSTS_SIZE 256
+
 /******************************************************************************
  *	TYPES
  *****************************************************************************/
+
+/**
+ *	Host Information
+ *
+ *	@ingroup as_config_object
+ */
+typedef struct as_config_host_s {
+	
+	/**
+	 *	Host address
+	 */
+	const char * addr;
+	
+	/**
+	 *	Host port
+	 */
+	uint16_t port;
+
+} as_config_host;
 
 /**
  *	IP translation table.
@@ -78,12 +102,12 @@ typedef struct as_addr_map_s {
 	/**
 	 *	Original hostname or IP address in string format.
 	 */
-    char* orig;
+    char * orig;
 	
 	/**
 	 *	Use this IP address instead.
 	 */
-    char* alt;
+    char * alt;
 	
 } as_addr_map;
 
@@ -116,135 +140,6 @@ typedef struct as_config_lua_s {
 } as_config_lua;
 
 /**
- *	TLS module config
- *
- *	@ingroup as_config_object
- */
-typedef struct as_config_tls_s {
-
-	/**
-	 *	Enable TLS on connections.
-     *  By default TLS is disabled.
-	 */
-	bool enable;
-
-	/**
-	 *	Only encrypt connections; do not verify certificates.
-     *  By default TLS will verify certificates.
-	 */
-	bool encrypt_only;
-	
-	/**
-	 *  Path to a trusted CA certificate file.
-	 *  By default TLS will use system standard trusted CA certificates.
-	 *	Use as_config_tls_set_cafile() to set this field.
-	 */
-	char* cafile;
-
-	/**
-	 *  Path to a directory of trusted certificates.
-	 *  See the OpenSSL SSL_CTX_load_verify_locations manual page for
-	 *  more information about the format of the directory.
-	 *	Use as_config_tls_set_capath() to set this field.
-	 */
-	char* capath;
-
-	/**
-	 *  Specifies enabled protocols.
-	 *
-	 *  This format is the same as Apache's SSLProtocol documented
-	 *  at https://httpd.apache.org/docs/current/mod/mod_ssl.html#sslprotocol
-	 *
-	 *  If not specified (NULL) the client will use "-all +TLSv1.2".
-	 *
-	 *  If you are not sure what protocols to select this option is
-	 *  best left unspecified (NULL).
-	 *
-	 *	Use as_config_tls_set_protocols() to set this field.
-	 */
-	char* protocols;
-	
-	/**
-	 *  Specifies enabled cipher suites.
-	 *
-	 *  The format is the same as OpenSSL's Cipher List Format documented
-	 *  at https://www.openssl.org/docs/manmaster/apps/ciphers.html
-	 *
-	 *  If not specified the OpenSSL default cipher suite described in
-	 *  the ciphers documentation will be used.
-	 *
-	 *  If you are not sure what cipher suite to select this option
-	 *  is best left unspecified (NULL).
-	 *
-	 *	Use as_config_tls_set_cipher_suite() to set this field.
-	 */
-	char* cipher_suite;
-	
-	/**
-	 *	Enable CRL checking for the certificate chain leaf certificate.
-	 *  An error occurs if a suitable CRL cannot be found.
-     *  By default CRL checking is disabled.
-	 */
-	bool crl_check;
-
-	/**
-	 *	Enable CRL checking for the entire certificate chain.
-	 *  An error occurs if a suitable CRL cannot be found.
-     *  By default CRL checking is disabled.
-	 */
-	bool crl_check_all;
-
-	/**
-	 *  Path to a certificate blacklist file.
-	 *  The file should contain one line for each blacklisted certificate.
-	 *  Each line starts with the certificate serial number expressed in hex.
-	 *  Each entry may optionally specify the issuer name of the
-	 *  certificate (serial numbers are only required to be unique per
-	 *  issuer).  Example records:
-	 *  867EC87482B2 /C=US/ST=CA/O=Acme/OU=Engineering/CN=Test Chain CA
-	 *  E2D4B0E570F9EF8E885C065899886461
-	 *
-	 *	Use as_config_tls_set_cert_blacklist() to set this field.
-	 */
-	char* cert_blacklist;
-
-	/**
-	 *  Log session information for each connection.
-	 */
-	bool log_session_info;
-	
-	/**
-	 *  Path to the client's key for mutual authentication.
-	 *  By default mutual authentication is disabled.
-	 *
-	 *	Use as_config_tls_set_keyfile() to set this field.
-	 */
-	char* keyfile;
-
-	/**
-	 *  Path to the client's certificate chain file for mutual authentication.
-	 *  By default mutual authentication is disabled.
-	 *
-	 *	Use as_config_tls_set_certfile() to set this field.
-	 */
-	char* certfile;
-
-	/**
-	 *	Maximum socket idle in seconds for TLS connections.  TLS Socket connection pools will
-	 *	discard sockets that have been idle longer than the maximum.  The value is limited to
-	 *	24 hours (86400).
-	 *
-	 *	It's important to set this value to a few seconds less than the server's proto-fd-idle-ms
-	 *	(default 60000 milliseconds or 1 minute), so the client does not attempt to use a socket
-	 *	that has already been reaped by the server.
-	 *
-	 *	Default: 55 seconds
-	 */
-	uint32_t max_socket_idle;
-
-} as_config_tls;
-
-/**
  *	The `as_config` contains the settings for the `aerospike` client. Including
  *	default policies, seed hosts in the cluster and other settings.
  *
@@ -269,7 +164,8 @@ typedef struct as_config_tls_s {
  *	as_config_add_host(&config, "127.0.0.1", 3000);
  *	~~~~~~~~~~
  *
- *	The client will iterate over the list until it connects with one of the hosts.
+ *	You can define up to 256 hosts for the seed. The client will iterate over
+ *	the list until it connects with one of the hosts. 
  *
  *	## Policies
  *
@@ -343,36 +239,20 @@ typedef struct as_config_tls_s {
  *	strcpy(config.mod_lua.user_path, "/home/me/lua");
  *	~~~~~~~~~~
  *
- *	Never call as_config_destroy() directly because ownership of config fields
- *	is transferred to aerospike in aerospike_init() or aerospike_new().
- *
  *	@ingroup client_objects
  */
 typedef struct as_config_s {
-	/**
-	 *	Seed hosts. Populate with one or more hosts in the cluster that you intend to connect with.
-	 *	Do not set directly.  Use as_config_add_hosts() or as_config_add_host() to add seed hosts.
-	 */
-	as_vector* hosts;
-	
+
 	/**
 	 *	User authentication to cluster.  Leave empty for clusters running without restricted access.
 	 */
 	char user[AS_USER_SIZE];
 	
 	/**
-	 *	Password authentication to cluster.  The hashed value of password will be stored by the client 
-	 *	and sent to server in same format.  Leave empty for clusters running without restricted access.
+	 *	Password authentication to cluster.  The password will be stored by the client and sent to
+	 *  server in hashed format.  Leave empty for clusters running without restricted access.
 	 */
 	char password[AS_PASSWORD_HASH_SIZE];
-	
-	/**
-	 *	Expected cluster name.  If not null, server nodes must return this cluster name in order to
-	 *	join the client's view of the cluster. Should only be set when connecting to servers that
-	 *	support the "cluster-name" info command.  Use as_config_set_cluster_name() to set this field.
-	 *	Default: NULL
-	 */
-	char* cluster_name;
 	
 	/**
 	 *	A IP translation table is used in cases where different clients use different server
@@ -385,7 +265,7 @@ typedef struct as_config_s {
 	 *	A deep copy of ip_map is performed in aerospike_connect().  The caller is
 	 *  responsible for memory deallocation of the original data structure.
 	 */
-	as_addr_map* ip_map;
+	as_addr_map * ip_map;
 	
 	/**
 	 *	Length of ip_map array.
@@ -394,49 +274,21 @@ typedef struct as_config_s {
 	uint32_t ip_map_size;
 	
 	/**
-	 * Maximum number of synchronous connections allowed per server node.  Synchronous transactions
-	 * will go through retry logic and potentially fail with error code "AEROSPIKE_ERR_NO_MORE_CONNECTIONS"
-	 * if the maximum number of connections would be exceeded.
-	 * 
-	 * The number of connections used per node depends on how many concurrent threads issue
-	 * database commands plus sub-threads used for parallel multi-node commands (batch, scan,
-	 * and query). One connection will be used for each thread.
-	 *
-	 * Default: 300
-	 */
-	uint32_t max_conns_per_node;
-	
-	/**
-	 *	Maximum number of asynchronous (non-pipeline) connections allowed for each node.
-	 *	This limit will be enforced at the node/event loop level.  If the value is 100 and 2 event
-	 *	loops are created, then each node/event loop asynchronous (non-pipeline) connection pool 
-	 *	will have a limit of 50. Async transactions will be rejected if the limit would be exceeded.
-	 *	This variable is ignored if asynchronous event loops are not created.
+	 *	Estimate of incoming threads concurrently using synchronous methods in the client instance.
+	 *	This field is used to size the synchronous connection pool for each server node.
 	 *	Default: 300
 	 */
-	uint32_t async_max_conns_per_node;
-
-	/**
-	 *	Maximum number of pipeline connections allowed for each node.
-	 *	This limit will be enforced at the node/event loop level.  If the value is 100 and 2 event
-	 *	loops are created, then each node/event loop pipeline connection pool will have a limit of 50. 
-	 *	Async transactions will be rejected if the limit would be exceeded.
-	 *	This variable is ignored if asynchronous event loops are not created.
-	 *	Default: 64
-	 */
-	uint32_t pipe_max_conns_per_node;
+	uint32_t max_threads;
 	
 	/**
-	 *	Number of synchronous connection pools used for each node.  Machines with 8 cpu cores or
-	 *	less usually need just one connection pool per node.  Machines with a large number of cpu
-	 *	cores may have their synchronous performance limited by contention for pooled connections.
-	 *	Contention for pooled connections can be reduced by creating multiple mini connection pools
-	 *	per node.
-	 *
-	 *	Default: 1
+	 *	@private
+	 *	Not currently used.
+	 *	Maximum socket idle in seconds.  Socket connection pools will discard sockets
+	 *	that have been idle longer than the maximum.
+	 *	Default: 14
 	 */
-	uint32_t conn_pools_per_node;
-
+	uint32_t max_socket_idle_sec;
+	
 	/**
 	 *	Initial host connection timeout in milliseconds.  The timeout when opening a connection
 	 *	to the server host for the first time.
@@ -451,110 +303,37 @@ typedef struct as_config_s {
 	uint32_t tender_interval;
 
 	/**
-	 *	Number of threads stored in underlying thread pool used by synchronous batch/scan/query commands.
-	 *	These commands are often sent to multiple server nodes in parallel threads.  A thread pool 
-	 *	improves performance because threads do not have to be created/destroyed for each command.
-	 *	Calculate your value using the following formula:
-	 *
-	 *	thread_pool_size = (concurrent synchronous batch/scan/query commands) * (server nodes)
-	 *
-	 *	If your application only uses async commands, this field can be set to zero.
-	 *	Default: 16
+	 *	Count of entries in hosts array.
 	 */
-	uint32_t thread_pool_size;
+	uint32_t hosts_size;
 	
+	/**
+	 *	(seed) hosts
+	 *	Populate with one or more hosts in the cluster
+	 *	that you intend to connect with.
+	 */
+	as_config_host hosts[AS_CONFIG_HOSTS_SIZE];
+
 	/**
 	 *	Client policies
 	 */
 	as_policies policies;
 
 	/**
-	 *	lua config.  This is a global config even though it's located here in cluster config.
-	 *	This config has been left here to avoid breaking the API.
-	 *
-	 *	The global lua config will only be changed once on first cluster initialization.
-	 *	A better method for initializing lua configuration is to leave this field alone and
-	 *	instead call aerospike_init_lua():
-	 *
-	 *	~~~~~~~~~~{.c}
-	 *	// Get default global lua configuration.
-	 *	as_config_lua lua;
-	 *	as_config_lua_init(&lua);
-	 *
-	 *	// Optionally modify lua defaults.
-	 *	lua.cache_enabled = <enable lua cache>;
-	 *	strcpy(lua.system_path, <lua system directory>);
-	 *	strcpy(lua.user_path, <lua user directory>);
-	 *
-	 *	// Initialize global lua configuration.
-	 *	aerospike_init_lua(&lua);
-	 *	~~~~~~~~~~
+	 *	lua config
 	 */
 	as_config_lua lua;
-
-	/*
-	 * TLS configuration parameters.
-	 */
-	as_config_tls tls;
 	
 	/**
 	 *	Action to perform if client fails to connect to seed hosts.
 	 *
-	 *	If fail_if_not_connected is true (default), the cluster creation will fail
-	 *	when all seed hosts are not reachable.
+	 *	If fail_if_not_connected is false (default), an empty cluster will be
+	 *	created and the client will automatically connect when Aerospike server
+	 *	becomes available.
 	 *
-	 *	If fail_if_not_connected is false, an empty cluster will be created and the 
-	 *	client will automatically connect when Aerospike server becomes available.
+	 *	If fail_if_not_connected is true, the cluster creation will fail.
 	 */
 	bool fail_if_not_connected;
-	
-	/**
-	 *	Flag to signify if "services-alternate" should be used instead of "services"
-	 *	Default : false
-	 */
-	bool use_services_alternate;
-
-	/**
-	 *	Indicates if shared memory should be used for cluster tending.  Shared memory
-	 *	is useful when operating in single threaded mode with multiple client processes.
-	 *	This model is used by wrapper languages such as PHP and Python.  When enabled, 
-	 *	the data partition maps are maintained by only one process and all other processes 
-	 *	use these shared memory maps.
-	 *
-	 *	Shared memory should not be enabled for multi-threaded programs.
-	 *	Default: false
-	 */
-	bool use_shm;
-
-	/**
-	 *	Shared memory identifier.  This identifier should be the same for all applications
-	 *	that use the Aerospike C client. 
-	 *	Default: 0xA6000000
-	 */
-	int shm_key;
-	
-	/**
-	 *	Shared memory maximum number of server nodes allowed.  This value is used to size
-	 *	the fixed shared memory segment.  Leave a cushion between actual server node
-	 *	count and shm_max_nodes so new nodes can be added without having to reboot the client.
-	 *	Default: 16
-	 */
-	uint32_t shm_max_nodes;
-	
-	/**
-	 *	Shared memory maximum number of namespaces allowed.  This value is used to size
-	 *	the fixed shared memory segment.  Leave a cushion between actual namespaces
-	 *	and shm_max_namespaces so new namespaces can be added without having to reboot the client.
-	 *	Default: 8
-	 */
-	uint32_t shm_max_namespaces;
-	
-	/**
-	 *	Take over shared memory cluster tending if the cluster hasn't been tended by this
-	 *	threshold in seconds.
-	 *	Default: 30
-	 */
-	uint32_t shm_takeover_threshold_sec;
 } as_config;
 
 /******************************************************************************
@@ -568,63 +347,37 @@ typedef struct as_config_s {
  *	populating it with custom options.
  *
  *	~~~~~~~~~~{.c}
- *	as_config config;
- *	as_config_init(&config);
- *	as_config_add_host(&config, "127.0.0.1", 3000);
+ *		as_config config;
+ *		as_config_init(&config);
+ *		as_config_add_host(&config, "127.0.0.1", 3000);
  *	~~~~~~~~~~
  *	
+ *	@param c The configuration to initialize.
+ *	
+ *	@return The initialized configuration on success. Otherwise NULL.
+ *
  *	@relates as_config
  */
-as_config*
-as_config_init(as_config* config);
+as_config * as_config_init(as_config * c);
 
-/**
- *	Add seed host(s) from a string with format: hostname1[:tlsname1][:port1],...
- *	Hostname may also be an IP address in the following formats.
- *
- *	~~~~~~~~~~{.c}
- *	IPv4: xxx.xxx.xxx.xxx
- *	IPv6: [xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
- *	IPv6: [xxxx::xxxx]
- *	~~~~~~~~~~
- *
- *	The host addresses will be copied.
- *	The caller is responsible for the original string.
- *
- *	~~~~~~~~~~{.c}
- *	as_config config;
- *	as_config_init(&config);
- *	as_config_add_hosts(&config, "host1,host2:3010,192.168.20.1:3020,[2001::1000]:3030", 3000);
- *	~~~~~~~~~~
- *
- *	@relates as_config
- */
-bool
-as_config_add_hosts(as_config* config, const char* string, uint16_t default_port);
-	
 /**
  *	Add host to seed the cluster.
- *	The host address will be copied.
- *	The caller is responsible for the original address string.
  *
  *	~~~~~~~~~~{.c}
- *	as_config config;
- *	as_config_init(&config);
- *	as_config_add_host(&config, "127.0.0.1", 3000);
+ *		as_config config;
+ *		as_config_init(&config);
+ *		as_config_add_host(&config, "127.0.0.1", 3000);
  *	~~~~~~~~~~
  *
  *	@relates as_config
  */
-void
-as_config_add_host(as_config* config, const char* address, uint16_t port);
-
-/**
- *	Remove all hosts.
- *
- *	@relates as_config
- */
-void
-as_config_clear_hosts(as_config* config);
+static inline void
+as_config_add_host(as_config* config, const char* addr, uint16_t port)
+{
+	as_config_host* host = &config->hosts[config->hosts_size++];
+	host->addr = addr;
+	host->port = port;
+}
 
 /**
  *	User authentication for servers with restricted access.  The password will be stored by the
@@ -640,130 +393,3 @@ as_config_clear_hosts(as_config* config);
  */
 bool
 as_config_set_user(as_config* config, const char* user, const char* password);
-
-/**
- *	Free existing string if not null and copy value to string.
- */
-void
-as_config_set_string(char** str, const char* value);
-
-/**
- *	Set expected cluster name.
- *
- *	@relates as_config
- */
-static inline void
-as_config_set_cluster_name(as_config* config, const char* cluster_name)
-{
-	as_config_set_string(&config->cluster_name, cluster_name);
-}
-
-/**
- *	Initialize global lua configuration to defaults.
- *
- *	@relates as_config
- */
-static inline void
-as_config_lua_init(as_config_lua* lua)
-{
-	lua->cache_enabled = false;
-	strcpy(lua->system_path, AS_CONFIG_LUA_SYSTEM_PATH);
-	strcpy(lua->user_path, AS_CONFIG_LUA_USER_PATH);
-}
-
-/**
- *	Set TLS path to a trusted CA certificate file.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_cafile(as_config* config, const char* cafile)
-{
-	as_config_set_string(&config->tls.cafile, cafile);
-}
-
-/**
- *	Set TLS path to a directory of trusted certificates.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_capath(as_config* config, const char* capath)
-{
-	as_config_set_string(&config->tls.capath, capath);
-}
-
-/**
- *	Set TLS enabled protocols.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_protocols(as_config* config, const char* protocols)
-{
-	as_config_set_string(&config->tls.protocols, protocols);
-}
-
-/**
- *	Set TLS enabled cipher suites.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_cipher_suite(as_config* config, const char* cipher_suite)
-{
-	as_config_set_string(&config->tls.cipher_suite, cipher_suite);
-}
-
-/**
- *	Set TLS path to a certificate blacklist file.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_cert_blacklist(as_config* config, const char* cert_blacklist)
-{
-	as_config_set_string(&config->tls.cert_blacklist, cert_blacklist);
-}
-
-/**
- *	Set TLS path to the client's key for mutual authentication.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_keyfile(as_config* config, const char* keyfile)
-{
-	as_config_set_string(&config->tls.keyfile, keyfile);
-}
-
-/**
- *	Set TLS path to the client's certificate chain file for mutual authentication.
- *
- *	@relates as_config
- */
-static inline void
-as_config_tls_set_certfile(as_config* config, const char* certfile)
-{
-	as_config_set_string(&config->tls.certfile, certfile);
-}
-
-/**
- *	Add TLS host to seed the cluster.
- *	The host address and TLS name will be copied.
- *	The caller is responsible for the original address string.
- *
- *	~~~~~~~~~~{.c}
- *	as_config config;
- *	as_config_init(&config);
- *	as_config_tls_add_host(&config, "127.0.0.1", "node1.test.org", 3000);
- *	~~~~~~~~~~
- *
- *	@relates as_config
- */
-void
-as_config_tls_add_host(as_config* config, const char* address, const char* tls_name, uint16_t port);
-
-#ifdef __cplusplus
-} // end extern "C"
-#endif
