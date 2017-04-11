@@ -1,30 +1,28 @@
-/******************************************************************************
- *	Copyright 2008-2013 by Aerospike.
+/*
+ * Copyright 2008-2017 Aerospike, Inc.
  *
- *	Permission is hereby granted, free of charge, to any person obtaining a copy
- *	of this software and associated documentation files (the "Software"), to
- *	deal in the Software without restriction, including without limitation the
- *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- *	sell copies of the Software, and to permit persons to whom the Software is
- *	furnished to do so, subject to the following conditions:
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements.
  *
- *	The above copyright notice and this permission notice shall be included in
- *	all copies or substantial portions of the Software.
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
  *
- *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *	IN THE SOFTWARE.
- *****************************************************************************/
-
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 #pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <aerospike/as_bin.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -36,37 +34,43 @@
 typedef enum as_operator_e {
 
 	/**
-	 *	Update the bin.
-	 */
-	AS_OPERATOR_WRITE      = 0,
-
-	/**
 	 *	Return the bin from the cluster.
 	 */
 	AS_OPERATOR_READ       = 1,
+	
+	/**
+	 *	Update the bin.
+	 */
+	AS_OPERATOR_WRITE      = 2,
+
+	AS_OPERATOR_CDT_READ   = 3,
+	AS_OPERATOR_CDT_MODIFY = 4,
+
+	AS_OPERATOR_MAP_READ   = 6,  // eventually maps to AS_OPERATOR_CDT_READ
+	AS_OPERATOR_MAP_MODIFY = 7,  // eventually maps to AS_OPERATOR_MAP_MODIFY
 
 	/**
 	 *	Increment a bin containing an
 	 *	integer value.
 	 */
-	AS_OPERATOR_INCR       = 2,
-
-	/**
-	 *	Prepend bytes to the bin containing
-	 *	either a string or blob.
-	 */
-	AS_OPERATOR_PREPEND    = 4,
+	AS_OPERATOR_INCR       = 5,
 
 	/**
 	 *	Append bytes to the bin containing
 	 *	either a string or blob.
 	 */
-	AS_OPERATOR_APPEND     = 5,
+	AS_OPERATOR_APPEND     = 9,
+	
+	/**
+	 *	Prepend bytes to the bin containing
+	 *	either a string or blob.
+	 */
+	AS_OPERATOR_PREPEND    = 10,
 
 	/**
 	 *	Touch the record's ttl.
 	 */
-	AS_OPERATOR_TOUCH      = 8
+	AS_OPERATOR_TOUCH      = 11
 
 } as_operator;
 
@@ -326,9 +330,9 @@ typedef struct as_operations_s {
 	(__ops)->gen = 0;\
 	(__ops)->ttl = 0;\
 	(__ops)->binops._free = false;\
-	(__ops)->binops.capacity = __nops;\
+	(__ops)->binops.capacity = (__nops);\
 	(__ops)->binops.size = 0;\
-	(__ops)->binops.entries = (as_binop *) alloca(sizeof(as_binop) * __nops);
+	(__ops)->binops.entries = (as_binop*) alloca(sizeof(as_binop) * (__nops));
 
 /******************************************************************************
  *	FUNCTIONS
@@ -421,6 +425,20 @@ bool as_operations_add_write(as_operations * ops, const as_bin_name name, as_bin
 bool as_operations_add_write_int64(as_operations * ops, const as_bin_name name, int64_t value);
 
 /**
+ *	Add a `AS_OPERATOR_WRITE` bin operation with a double value.
+ *
+ *	@param ops			The `as_operations` to append the operation to.
+ *	@param name 		The name of the bin to perform the operation on.
+ *	@param value 		The value to be used in the operation.
+ *
+ *	@return true on success. Otherwise an error occurred.
+ *
+ *	@relates as_operations
+ *	@ingroup as_operations_object
+ */
+bool as_operations_add_write_double(as_operations * ops, const as_bin_name name, double value);
+
+/**
  *	Add a `AS_OPERATOR_WRITE` bin operation with a NULL-terminated string value.
  *
  *	@param ops			The `as_operations` to append the operation to.
@@ -450,6 +468,38 @@ bool as_operations_add_write_strp(as_operations * ops, const as_bin_name name, c
 static inline bool as_operations_add_write_str(as_operations * ops, const as_bin_name name, const char * value)
 {
 	return as_operations_add_write_strp(ops, name, value, false);
+}
+
+/**
+ *	Add a `AS_OPERATOR_WRITE` bin operation with a NULL-terminated GeoJSON string value.
+ *
+ *	@param ops			The `as_operations` to append the operation to.
+ *	@param name			The name of the bin to perform the operation on.
+ *	@param value		The value to be used in the operation.
+ *	@param free			If true, then the value will be freed when the operations is destroyed.
+ *
+ *	@return true on success. Otherwise an error occurred.
+ *
+ *	@relates as_operations
+ *	@ingroup as_operations_object
+ */
+bool as_operations_add_write_geojson_strp(as_operations * ops, const as_bin_name name, const char * value, bool free);
+
+/**
+ *	Add a `AS_OPERATOR_WRITE` bin operation with a NULL-terminated GeoJSON string value.
+ *
+ *	@param ops			The `as_operations` to append the operation to.
+ *	@param name			The name of the bin to perform the operation on.
+ *	@param value		The value to be used in the operation. Must last for the lifetime of the operations.
+ *
+ *	@return true on success. Otherwise an error occurred.
+ *
+ *	@relates as_operations
+ *	@ingroup as_operations_object
+ */
+static inline bool as_operations_add_write_geojson_str(as_operations * ops, const as_bin_name name, const char * value)
+{
+	return as_operations_add_write_geojson_strp(ops, name, value, false);
 }
 
 /**
@@ -512,6 +562,20 @@ bool as_operations_add_read(as_operations * ops, const as_bin_name name);
  *	@ingroup as_operations_object
  */
 bool as_operations_add_incr(as_operations * ops, const as_bin_name name, int64_t value);
+
+/**
+ *	Add a `AS_OPERATOR_INCR` bin operation with double value.
+ *
+ *	@param ops			The `as_operations` to append the operation to.
+ *	@param name 		The name of the bin to perform the operation on.
+ *	@param value 		The value to be used in the operation.
+ *
+ *	@return true on success. Otherwise an error occurred.
+ *
+ *	@relates as_operations
+ *	@ingroup as_operations_object
+ */
+bool as_operations_add_incr_double(as_operations * ops, const as_bin_name name, double value);
 
 /**
  *	Add a `AS_OPERATOR_PREPEND` bin operation with a NULL-terminated string value.
@@ -656,3 +720,15 @@ static inline bool as_operations_add_append_raw(as_operations * ops, const as_bi
  *	@ingroup as_operations_object
  */
 bool as_operations_add_touch(as_operations * ops);
+
+/******************************************************************************
+ *	LIST FUNCTIONS
+ *****************************************************************************/
+
+// Add list operations to this header file for legacy reasons.
+
+#include <aerospike/as_list_operations.h>
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif

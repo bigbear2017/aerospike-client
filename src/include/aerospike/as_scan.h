@@ -1,31 +1,30 @@
-/******************************************************************************
- *	Copyright 2008-2013 by Aerospike.
+/*
+ * Copyright 2008-2017 Aerospike, Inc.
  *
- *	Permission is hereby granted, free of charge, to any person obtaining a copy 
- *	of this software and associated documentation files (the "Software"), to 
- *	deal in the Software without restriction, including without limitation the 
- *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
- *	sell copies of the Software, and to permit persons to whom the Software is 
- *	furnished to do so, subject to the following conditions:
- *	
- *	The above copyright notice and this permission notice shall be included in 
- *	all copies or substantial portions of the Software.
- *	
- *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
- *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *	IN THE SOFTWARE.
- *****************************************************************************/
-
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 #pragma once 
 #pragma GCC diagnostic ignored "-Waddress"
 
 #include <aerospike/as_bin.h>
 #include <aerospike/as_key.h>
+#include <aerospike/as_predexp.h>
 #include <aerospike/as_udf.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	MACROS
@@ -50,6 +49,16 @@
  *	Default value for as_scan.concurrent
  */
 #define AS_SCAN_CONCURRENT_DEFAULT false
+
+/**
+ *	Default value for as_scan.include_ldt
+ */
+#define AS_SCAN_INCLUDE_LDT_DEFAULT false
+
+/**
+ *	Default value for as_scan.deserialize_list_map
+ */
+#define AS_SCAN_DESERIALIZE_DEFAULT true
 
 /******************************************************************************
  *	TYPES
@@ -169,6 +178,40 @@ typedef struct as_scan_bins_s {
 } as_scan_bins;
 
 /**
+ *	Sequence of predicate expressions to be applied to a scan.
+ *
+ *	Entries can either be initialized on the stack or on the heap.
+ *
+ *	Initialization should be performed via a scan object, using:
+ *	-	as_scan_predexp_init()
+ *	-	as_scan_predexp_inita()
+ */
+typedef struct as_scan_predexp_s {
+
+	/**
+	 *	@private
+	 *	If true, then as_scan_destroy() will free this instance.
+	 */
+	bool _free;
+
+	/**
+	 *	Number of entries allocated
+	 */
+	uint16_t capacity;
+
+	/**
+	 *	Number of entries used
+	 */
+	uint16_t size;
+
+	/**
+	 *	Sequence of entries
+	 */
+	as_predexp_base ** entries;
+
+} as_scan_predexp;
+
+/**
  *	In order to execute a scan using the Scan API, an as_scan object
  *	must be initialized and populated.
  *
@@ -208,7 +251,7 @@ typedef struct as_scan_bins_s {
  *
  *	## Usage
  *
- *	An initialized as_query can be populated with additional fields.
+ *	An initialized as_scan can be populated with additional fields.
  *
  *	### Selecting Bins
  *
@@ -323,6 +366,23 @@ typedef struct as_scan_s {
 	bool concurrent;
 
 	/**
+	 *	Include large data type bin values in addition to large data type bin names.
+	 *	If false, LDT bin names will be returned, but LDT bin values will be empty.
+	 *	If true,  LDT bin names and the entire LDT bin values will be returned.
+	 *	This is useful for backups.
+	 *	Default: false
+	 */
+	bool include_ldt;
+
+	/**
+	 *	Set to true if the scan should deserialize list and map raw bytes.
+	 *	Set to false for backup programs that just need access to raw bytes.
+	 *
+	 *	Default value is AS_SCAN_DESERIALIZE_DEFAULT.
+	 */
+	bool deserialize_list_map;
+	
+	/**
 	 * 	@memberof as_scan
 	 *	Namespace to be scanned.
 	 *
@@ -355,6 +415,17 @@ typedef struct as_scan_s {
 	as_scan_bins select;
 	
 	/**
+	 *	Predicate Expressions for filtering.
+	 *	
+	 *	Use either of the following function to initialize:
+	 *	-	as_query_predexp_init() -	To initialize on the heap.
+	 *	-	as_query_predexp_inita() -	To initialize on the stack.
+	 *
+	 *	Use as_query_predexp() to populate.
+	 */
+	as_scan_predexp predexp;
+
+	/**	
 	 *	Apply the UDF for each record scanned on the server.
 	 *
 	 *	Should be set via `as_scan_apply_each()`.
@@ -442,14 +513,16 @@ void as_scan_destroy(as_scan * scan);
  *	@ingroup as_scan_object
  */
 #define as_scan_select_inita(__scan, __n) \
-	if ( (__scan) != NULL && (__scan)->select.entries == NULL ) {\
-		(__scan)->select.entries = (as_bin_name *) alloca(__n * sizeof(as_bin_name));\
-		if ( (__scan)->select.entries ) { \
-			(__scan)->select._free = false;\
-			(__scan)->select.capacity = __n;\
-			(__scan)->select.size = 0;\
-		}\
- 	}
+	do { \
+		if ( (__scan) != NULL && (__scan)->select.entries == NULL ) {\
+			(__scan)->select.entries = (as_bin_name*) alloca(sizeof(as_bin_name) * (__n));\
+			if ( (__scan)->select.entries ) { \
+				(__scan)->select._free = false;\
+				(__scan)->select.capacity = (__n);\
+				(__scan)->select.size = 0;\
+			}\
+	 	} \
+	} while(0)
 
 /** 
  *	Initializes `as_scan.select` with a capacity of `n` using `malloc()`.
@@ -493,6 +566,86 @@ bool as_scan_select_init(as_scan * scan, uint16_t n);
  *	@ingroup as_scan_object
  */
 bool as_scan_select(as_scan * scan, const char * bin);
+
+
+/******************************************************************************
+ *	PREDEXP FUNCTIONS
+ *****************************************************************************/
+
+/** 
+ *	Initializes `as_scan.predexp` with a capacity of `n` using `alloca`
+ *
+ *	For heap allocation, use `as_scan_predexp_init()`.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_scan_predexp_inita(&scan, 3);
+ *	as_scan_predexp_add(&scan, as_predexp_integer_value(90));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_bin("bin1"));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_greatereq());
+ *	~~~~~~~~~~
+ *	
+ *	@param __scan	The scan to initialize.
+ *	@param __n		The number of predicate expression slots to allocate.
+ *
+ *	@relates as_scan
+ *	@ingroup as_scan_object
+ */
+#define as_scan_predexp_inita(__scan, __n)							\
+	if ( (__scan) != NULL && (__scan)->predexp.entries == NULL ) {	\
+		(__scan)->predexp.entries =									\
+			(as_predexp_base **)											\
+			alloca(__n * sizeof(as_predexp_base *));					\
+		if ( (__scan)->predexp.entries ) {								\
+			(__scan)->predexp._free = false;							\
+			(__scan)->predexp.capacity = __n;							\
+			(__scan)->predexp.size = 0;								\
+		}																\
+	}
+
+/** 
+ *	Initializes `as_scan.predexp` with a capacity of `n` using `malloc()`.
+ *	
+ *	For stack allocation, use `as_scan_predexp_inita()`.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_scan_predexp_init(&scan, 3);
+ *	as_scan_predexp_add(&scan, as_predexp_integer_value(90));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_bin("bin1"));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_greatereq());
+ *	~~~~~~~~~~
+ *
+ *	@param scan	    The scan to initialize.
+ *	@param n		The number of predicate expression slots to allocate.
+ *
+ *	@return On success, the initialized. Otherwise an error occurred.
+ *
+ *	@relates as_scan
+ *	@ingroup as_scan_object
+ */
+bool as_scan_predexp_init(as_scan * scan, uint16_t n);
+
+/**
+ *	Adds predicate expressions to a scan.
+ *
+ *	You have to ensure as_scan.predexp has sufficient capacity, prior to 
+ *	adding a predexp. If capacity is sufficient then false is returned.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_scan_predexp_inita(&scan, 3);
+ *	as_scan_predexp_add(&scan, as_predexp_integer_value(90));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_bin("bin1"));
+ *	as_scan_predexp_add(&scan, as_predexp_integer_greatereq());
+ *	~~~~~~~~~~
+ *
+ *	@param scan 		The scan to modify.
+ *  @param predexp		Pointer to a constructed predicate expression.
+ *
+ *	@return On success, true. Otherwise an error occurred.
+ *
+ *	@relates as_scan
+ *	@ingroup as_scan_object
+ */
+bool as_scan_predexp_add(as_scan * scan, as_predexp_base * predexp);
 
 /******************************************************************************
  *	MODIFIER FUNCTIONS
@@ -588,3 +741,7 @@ bool as_scan_set_concurrent(as_scan * scan, bool concurrent);
  *	@ingroup as_scan_object
  */
 bool as_scan_apply_each(as_scan * scan, const char * module, const char * function, as_list * arglist);
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif
