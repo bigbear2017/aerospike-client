@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -17,15 +17,20 @@
 
 #pragma once
 
-#include <aerospike/as_integer.h>
-#include <aerospike/as_string.h>
 #include <aerospike/as_bytes.h>
+#include <aerospike/as_double.h>
+#include <aerospike/as_integer.h>
 #include <aerospike/as_list.h>
 #include <aerospike/as_map.h>
+#include <aerospike/as_string.h>
 #include <aerospike/as_val.h>
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -147,7 +152,12 @@ typedef enum as_arraylist_status_e {
 	/**
 	 *	Unable to expand capacity, because as_arraylist.block_size is 0.
 	 */
-	AS_ARRAYLIST_ERR_MAX    = 2
+	AS_ARRAYLIST_ERR_MAX    = 2,
+
+	/**
+	 *	Illegal array index.
+	 */
+	AS_ARRAYLIST_ERR_INDEX  = 3
 
 } as_arraylist_status;
 
@@ -171,9 +181,9 @@ typedef enum as_arraylist_status_e {
 #define as_arraylist_inita(__list, __n)\
 	as_arraylist_init((__list), 0, 0);\
 	(__list)->free = false;\
-	(__list)->capacity = __n;\
+	(__list)->capacity = (__n);\
 	(__list)->size = 0;\
-	(__list)->elements = (as_val **) alloca(sizeof(as_val *) * __n);
+	(__list)->elements = (as_val**) alloca(sizeof(as_val*) * (__n));
 
 /*******************************************************************************
  *	INSTANCE FUNCTIONS
@@ -245,6 +255,30 @@ uint32_t as_arraylist_size(const as_arraylist * list);
  ******************************************************************************/
 
 /**
+ *	Append all elements of list2, in order, to list. No new list object is
+ *	created.
+ *
+ *	@param list 	The list to append to.
+ *	@param list2 	The list from which to append.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_concat(as_arraylist * list, const as_arraylist * list2);
+
+/**
+ *	Delete (and destroy) all elements at and beyond specified index. Capacity is
+ *	not reduced.
+ *
+ *	@param list 	The list to trim.
+ *	@param index	The index from which to trim.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_trim(as_arraylist * list, uint32_t index);
+
+/**
  *	Get the first element of the list.
  *
  *	@param list 	The list to get the first element from.
@@ -299,7 +333,7 @@ as_arraylist * as_arraylist_take(const as_arraylist * list, uint32_t n);
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-as_val * as_arraylist_get(const as_arraylist * list, const uint32_t index);
+as_val * as_arraylist_get(const as_arraylist * list, uint32_t index);
 
 /**
  *  Return an int64_t value at the specified index of the list.
@@ -310,7 +344,18 @@ as_val * as_arraylist_get(const as_arraylist * list, const uint32_t index);
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-int64_t as_arraylist_get_int64(const as_arraylist * list, const uint32_t index);
+int64_t as_arraylist_get_int64(const as_arraylist * list, uint32_t index);
+
+/**
+ *  Return a double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	The index of the element.
+ *
+ *	@return The value at given index, if it exists. Otherwise NULL.
+ *	@relatesalso as_arraylist
+ */
+double as_arraylist_get_double(const as_arraylist * list, uint32_t index);
 
 /**
  *  Return a NULL-terminated value at the specified index of the list.
@@ -321,7 +366,7 @@ int64_t as_arraylist_get_int64(const as_arraylist * list, const uint32_t index);
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-char * as_arraylist_get_str(const as_arraylist * list, const uint32_t index);
+char * as_arraylist_get_str(const as_arraylist * list, uint32_t index);
 
 /**
  *  Return an as_integer value at the specified index of the list.
@@ -332,9 +377,23 @@ char * as_arraylist_get_str(const as_arraylist * list, const uint32_t index);
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-static inline as_integer * as_arraylist_get_integer(const as_arraylist * list, const uint32_t index) 
+static inline as_integer * as_arraylist_get_integer(const as_arraylist * list, uint32_t index)
 {
 	return as_integer_fromval(as_arraylist_get(list, index));
+}
+
+/**
+ *  Return an as_double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	The index of the element.
+ *
+ *	@return The value at given index, if it exists. Otherwise NULL.
+ *	@relatesalso as_arraylist
+ */
+static inline as_double* as_arraylist_get_as_double(const as_arraylist * list, uint32_t index)
+{
+	return as_double_fromval(as_arraylist_get(list, index));
 }
 
 /**
@@ -346,7 +405,7 @@ static inline as_integer * as_arraylist_get_integer(const as_arraylist * list, c
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-static inline as_string * as_arraylist_get_string(const as_arraylist * list, const uint32_t index) 
+static inline as_string * as_arraylist_get_string(const as_arraylist * list, uint32_t index)
 {
 	return as_string_fromval(as_arraylist_get(list, index));
 }
@@ -360,7 +419,7 @@ static inline as_string * as_arraylist_get_string(const as_arraylist * list, con
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-static inline as_bytes * as_arraylist_get_bytes(const as_arraylist * list, const uint32_t index) 
+static inline as_bytes * as_arraylist_get_bytes(const as_arraylist * list, uint32_t index)
 {
 	return as_bytes_fromval(as_arraylist_get(list, index));
 }
@@ -374,7 +433,7 @@ static inline as_bytes * as_arraylist_get_bytes(const as_arraylist * list, const
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-static inline as_list * as_arraylist_get_list(const as_arraylist * list, const uint32_t index) 
+static inline as_list * as_arraylist_get_list(const as_arraylist * list, uint32_t index)
 {
 	return as_list_fromval(as_arraylist_get(list, index));
 }
@@ -388,7 +447,7 @@ static inline as_list * as_arraylist_get_list(const as_arraylist * list, const u
  *	@return The value at given index, if it exists. Otherwise NULL.
  *	@relatesalso as_arraylist
  */
-static inline as_map * as_arraylist_get_map(const as_arraylist * list, const uint32_t index) 
+static inline as_map * as_arraylist_get_map(const as_arraylist * list, uint32_t index)
 {
 	return as_map_fromval(as_arraylist_get(list, index));
 }
@@ -413,7 +472,7 @@ static inline as_map * as_arraylist_get_map(const as_arraylist * list, const uin
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-int as_arraylist_set(as_arraylist * list, const uint32_t index, as_val * value);
+int as_arraylist_set(as_arraylist * list, uint32_t index, as_val * value);
 
 /**
  *  Set an int64_t value at the specified index of the list.
@@ -425,7 +484,19 @@ int as_arraylist_set(as_arraylist * list, const uint32_t index, as_val * value);
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-int as_arraylist_set_int64(as_arraylist * list, const uint32_t index, int64_t value);
+int as_arraylist_set_int64(as_arraylist * list, uint32_t index, int64_t value);
+
+/**
+ *  Set a double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to set at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_set_double(as_arraylist * list, uint32_t index, double value);
 
 /**
  *  Set a NULL-terminated string value at the specified index of the list.
@@ -437,7 +508,7 @@ int as_arraylist_set_int64(as_arraylist * list, const uint32_t index, int64_t va
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-int as_arraylist_set_str(as_arraylist * list, const uint32_t index, const char * value);
+int as_arraylist_set_str(as_arraylist * list, uint32_t index, const char * value);
 
 /**
  *  Set an as_integer value at the specified index of the list.
@@ -449,7 +520,22 @@ int as_arraylist_set_str(as_arraylist * list, const uint32_t index, const char *
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-static inline int as_arraylist_set_integer(as_arraylist * list, const uint32_t index, as_integer * value) 
+static inline int as_arraylist_set_integer(as_arraylist * list, uint32_t index, as_integer * value)
+{
+	return as_arraylist_set(list, index, (as_val *) value);
+}
+
+/**
+ *  Set an as_double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to set at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_set_as_double(as_arraylist * list, uint32_t index, as_double * value)
 {
 	return as_arraylist_set(list, index, (as_val *) value);
 }
@@ -464,7 +550,7 @@ static inline int as_arraylist_set_integer(as_arraylist * list, const uint32_t i
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-static inline int as_arraylist_set_string(as_arraylist * list, const uint32_t index, as_string * value) 
+static inline int as_arraylist_set_string(as_arraylist * list, uint32_t index, as_string * value)
 {
 	return as_arraylist_set(list, index, (as_val *) value);
 }
@@ -479,7 +565,7 @@ static inline int as_arraylist_set_string(as_arraylist * list, const uint32_t in
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-static inline int as_arraylist_set_bytes(as_arraylist * list, const uint32_t index, as_bytes * value) 
+static inline int as_arraylist_set_bytes(as_arraylist * list, uint32_t index, as_bytes * value)
 {
 	return as_arraylist_set(list, index, (as_val *) value);
 }
@@ -494,7 +580,7 @@ static inline int as_arraylist_set_bytes(as_arraylist * list, const uint32_t ind
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-static inline int as_arraylist_set_list(as_arraylist * list, const uint32_t index, as_list * value) 
+static inline int as_arraylist_set_list(as_arraylist * list, uint32_t index, as_list * value)
 {
 	return as_arraylist_set(list, index, (as_val *) value);
 }
@@ -509,9 +595,154 @@ static inline int as_arraylist_set_list(as_arraylist * list, const uint32_t inde
  *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
  *	@relatesalso as_arraylist
  */
-static inline int as_arraylist_set_map(as_arraylist * list, const uint32_t index, as_map * value) 
+static inline int as_arraylist_set_map(as_arraylist * list, uint32_t index, as_map * value)
 {
 	return as_arraylist_set(list, index, (as_val *) value);
+}
+
+/******************************************************************************
+ *	INSERT FUNCTIONS
+ ******************************************************************************/
+
+/**
+ *  Insert a value at the specified index of the list.
+ *
+ *	Any elements at and beyond specified index will be shifted so their indexes
+ *	increase by 1. It's ok to insert beyond the current end of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_insert(as_arraylist * list, uint32_t index, as_val * value);
+
+/**
+ *  Insert an int64_t value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_insert_int64(as_arraylist * list, uint32_t index, int64_t value);
+
+/**
+ *  Insert a double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_insert_double(as_arraylist * list, uint32_t index, double value);
+
+/**
+ *  Insert a NULL-terminated string value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_insert_str(as_arraylist * list, uint32_t index, const char * value);
+
+/**
+ *  Insert an as_integer value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_integer(as_arraylist * list, uint32_t index, as_integer * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
+}
+
+/**
+ *  Insert an as_double value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_as_double(as_arraylist * list, uint32_t index, as_double * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
+}
+
+/**
+ *  Insert an as_string value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_string(as_arraylist * list, uint32_t index, as_string * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
+}
+
+/**
+ *  Insert an as_bytes value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_bytes(as_arraylist * list, uint32_t index, as_bytes * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
+}
+
+/**
+ *  Insert an as_list value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_list(as_arraylist * list, uint32_t index, as_list * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
+}
+
+/**
+ *  Insert an as_map value at the specified index of the list.
+ *
+ *	@param list 	The list.
+ *	@param index	Position in the list.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_insert_map(as_arraylist * list, uint32_t index, as_map * value)
+{
+	return as_arraylist_insert(list, index, (as_val *) value);
 }
 
 /******************************************************************************
@@ -541,6 +772,17 @@ int as_arraylist_append(as_arraylist * list, as_val * value);
 int as_arraylist_append_int64(as_arraylist * list, int64_t value);
 
 /**
+ *  Add a double to the end of the list.
+ *
+ *	@param list 	The list.
+ *	@param value 	The value to prepend.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_append_double(as_arraylist * list, double value);
+
+/**
  *  Add a NULL-terminated string to the end of the list.
  *
  *	@param list 	The list.
@@ -561,6 +803,20 @@ int as_arraylist_append_str(as_arraylist * list, const char * value);
  *	@relatesalso as_arraylist
  */
 static inline int as_arraylist_append_integer(as_arraylist * list, as_integer * value) 
+{
+	return as_arraylist_append(list, (as_val *) value);
+}
+
+/**
+ *  Add an as_double to the end of the list.
+ *
+ *	@param list 	The list.
+ *	@param value 	The value to prepend.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_append_as_double(as_arraylist * list, as_double * value)
 {
 	return as_arraylist_append(list, (as_val *) value);
 }
@@ -648,6 +904,17 @@ int as_arraylist_prepend(as_arraylist * list, as_val * value);
 int as_arraylist_prepend_int64(as_arraylist * list, int64_t value);
 
 /**
+ *  Add a double to the beginning of the list.
+ *
+ *	@param list 	The list.
+ *	@param value 	The value to prepend.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_prepend_double(as_arraylist * list, double value);
+
+/**
  *  Add a NULL-terminated string to the beginning of the list.
  *
  *	@param list 	The list.
@@ -668,6 +935,20 @@ int as_arraylist_prepend_str(as_arraylist * list, const char * value);
  *	@relatesalso as_arraylist
  */
 static inline int as_arraylist_prepend_integer(as_arraylist * list, as_integer * value) 
+{
+	return as_arraylist_prepend(list, (as_val *) value);
+}
+
+/**
+ *  Add an as_double to the beginning of the list.
+ *
+ *	@param list 	The list.
+ *	@param value 	The value to prepend.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+static inline int as_arraylist_prepend_as_double(as_arraylist * list, as_double * value)
 {
 	return as_arraylist_prepend(list, (as_val *) value);
 }
@@ -728,6 +1009,24 @@ static inline int as_arraylist_prepend_map(as_arraylist * list, as_map * value)
 	return as_arraylist_prepend(list, (as_val *) value);
 }
 
+/*******************************************************************************
+ *	REMOVE FUNCTION
+ ******************************************************************************/
+
+/**
+ *	Remove element at specified index.
+ *
+ *	Any elements beyond specified index will be shifted so their indexes
+ *	decrease by 1. The element at specified index will be destroyed.
+ *
+ *	@param list 	The list.
+ *	@param index 	The index of the element to remove.
+ *
+ *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+ *	@relatesalso as_arraylist
+ */
+int as_arraylist_remove(as_arraylist * list, uint32_t index);
+
 /******************************************************************************
  *	ITERATION FUNCTIONS
  ******************************************************************************/
@@ -745,3 +1044,6 @@ static inline int as_arraylist_prepend_map(as_arraylist * list, as_map * value)
  */
 bool as_arraylist_foreach(const as_arraylist * list, as_list_foreach_callback callback, void * udata);
 
+#ifdef __cplusplus
+} // end extern "C"
+#endif

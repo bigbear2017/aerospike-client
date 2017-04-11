@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -23,6 +23,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -64,12 +68,12 @@ typedef struct as_map_s {
 	as_val _;
 
 	/**
-	 *	Pointer to the data for this list.
+	 *	Information for this instance of as_map.
 	 */
-	void * data;
+	uint32_t flags;
 
 	/**
-	 * Hooks for sybtypes of as_list to implement.
+	 *	Hooks for subtypes of as_map to implement.
 	 */
 	const struct as_map_hooks_s * hooks;
 
@@ -204,36 +208,34 @@ typedef struct as_map_hooks_s {
  *
  *	@param map		The map to initialize
  *	@param free 	If TRUE, then as_map_destory() will free the map.
- *	@param data		Data for the map.
+ *	@param flags	Map attributes.
  *	@param hooks	Implementaton for the map interface.
  *	
  *	@return The initialized as_map on success. Otherwise NULL.
  *	@relatesalso as_map
  */
-as_map * as_map_cons(as_map * map, bool free, void * data, const as_map_hooks * hooks);
+as_map * as_map_cons(as_map * map, bool free, uint32_t flags, const as_map_hooks * hooks);
 
 /**
  *	Initialize a stack allocated map.
  *
  *	@param map		Stack allocated map to initialize.
- *	@param data		Data for the map.
  *	@param hooks	Implementation for the map interface.
  *	
  *	@return On success, the initialized map. Otherwise NULL.
  *	@relatesalso as_map
  */
-as_map * as_map_init(as_map * map, void * data, const as_map_hooks * hooks);
+as_map * as_map_init(as_map * map, const as_map_hooks * hooks);
 
 /**
  *	Create and initialize a new heap allocated map.
  *	
- *	@param data		Data for the list.
  *	@param hooks	Implementation for the list interface.
  *	
  *	@return On success, a new list. Otherwise NULL.
  *	@relatesalso as_map
  */
-as_map * as_map_new(void * data, const as_map_hooks * hooks);
+as_map * as_map_new(const as_map_hooks * hooks);
 
 /**
  *	Destroy the as_map and associated resources.
@@ -425,3 +427,7 @@ uint32_t as_map_val_hashcode(const as_val * val);
  *	Internal helper function for getting the string representation of an as_val.
  */
 char * as_map_val_tostring(const as_val * val);
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif

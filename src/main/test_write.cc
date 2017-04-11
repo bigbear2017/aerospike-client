@@ -32,45 +32,11 @@ char aeroKeyStr[MAX_KEY_STR_SIZE] = "aeroTestKey";
 int aeroPort = 3000;
 as_key aeroKey;
 
-void connectToAerospike( aerospike & as ); 
-void dumpRecord( as_record & pRec );
-void initKey( as_key & key );
+//void connectToAerospike( aerospike & as ); 
+//void dumpRecord( as_record & pRec );
+//void initKey( as_key & key );
 
-int main( int argc, char * argv [] ) { 
-    aerospike as;
-    connectToAerospike( as ); //first connect to aerospike
-    as_error err; 
-
-    as_record record; //create record 
-    as_record_init( &record, 2 );
-    as_record_set_int64( &record, "bin1", 1234 );
-    as_record_set_str( &record, "bin2", "bin2-data");
-
-    dumpRecord( record );
-
-    initKey( aeroKey );
-
-    if( aerospike_key_put( &as, &err, NULL, &aeroKey, &record ) != AEROSPIKE_OK ) {
-        cout << "there is some problems, I can not put record into aerospike!" << endl;
-        //aerospikeCleanUp(& as);
-        exit(-1);
-    }
-
-    as_record * pRec = NULL;
-    if( aerospike_key_get( &as, &err, NULL, &aeroKey, &pRec ) != AEROSPIKE_OK ) {
-        cout << "there is some problems, I can not read record from aerospike!" << endl;
-        //aerospikeCleanUp( &as );
-        exit( -1 );
-    }
-
-    dumpRecord( *pRec );
-
-    as_record_destroy( pRec );
-
-    return 0;
-}
-
-void initKey() {
+void initKey( as_key & key ) {
     as_key_init_str( &aeroKey, aeroNameSpace, aeroSet, aeroKeyStr );
 }
 
@@ -78,7 +44,7 @@ void connectToAerospike( aerospike & tas ) {
     as_config config;
     as_config_init(&config);
 
-    if( !as_config_add_host(&config, aeroHost, aeroPort) ) {
+    if( !as_config_add_hosts(&config, aeroHost, aeroPort) ) {
         cout << "Invalid host(s) : " << aeroHost << " and port : " << aeroPort << endl;
     }
 
@@ -125,3 +91,37 @@ void dumpRecord( const as_record * pRec ) {
 
     as_record_iterator_destroy( &iter );
 }
+int main( int argc, char * argv [] ) { 
+    aerospike as;
+    connectToAerospike( as ); //first connect to aerospike
+    as_error err; 
+
+    as_record record; //create record 
+    as_record_init( &record, 2 );
+    as_record_set_int64( &record, "bin1", 1234 );
+    as_record_set_str( &record, "bin2", "bin2-data");
+
+    dumpRecord( &record );
+
+    initKey( aeroKey );
+
+    if( aerospike_key_put( &as, &err, NULL, &aeroKey, &record ) != AEROSPIKE_OK ) {
+        cout << "there is some problems, I can not put record into aerospike!" << endl;
+        //aerospikeCleanUp(& as);
+        exit(-1);
+    }
+
+    as_record * pRec = NULL;
+    if( aerospike_key_get( &as, &err, NULL, &aeroKey, &pRec ) != AEROSPIKE_OK ) {
+        cout << "there is some problems, I can not read record from aerospike!" << endl;
+        //aerospikeCleanUp( &as );
+        exit( -1 );
+    }
+
+    dumpRecord( pRec );
+
+    as_record_destroy( pRec );
+
+    return 0;
+}
+

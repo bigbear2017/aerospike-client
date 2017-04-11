@@ -1,30 +1,20 @@
-/******************************************************************************
- *	Copyright 2008-2013 by Aerospike.
+/*
+ * Copyright 2008-2017 Aerospike, Inc.
  *
- *	Permission is hereby granted, free of charge, to any person obtaining a copy 
- *	of this software and associated documentation files (the "Software"), to 
- *	deal in the Software without restriction, including without limitation the 
- *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or 
- *	sell copies of the Software, and to permit persons to whom the Software is 
- *	furnished to do so, subject to the following conditions:
- *	
- *	The above copyright notice and this permission notice shall be included in 
- *	all copies or substantial portions of the Software.
- *	
- *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
- *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *	IN THE SOFTWARE.
- *****************************************************************************/
-
+ * Portions may be licensed to Aerospike, Inc. under one or more contributor
+ * license agreements.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 #pragma once 
-
-#include <aerospike/as_status.h>
-
-#include <citrusleaf/cf_atomic.h>
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -32,6 +22,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -41,12 +35,11 @@
  *	Log Level
  */
 typedef enum as_log_level_e {
-	AS_LOG_LEVEL_OFF 	= -1,
-	AS_LOG_LEVEL_ERROR	= 0,
-	AS_LOG_LEVEL_WARN	= 1,
-	AS_LOG_LEVEL_INFO	= 2,
-	AS_LOG_LEVEL_DEBUG	= 3,
-	AS_LOG_LEVEL_TRACE 	= 4
+	AS_LOG_LEVEL_ERROR = 0,
+	AS_LOG_LEVEL_WARN = 1,
+	AS_LOG_LEVEL_INFO = 2,
+	AS_LOG_LEVEL_DEBUG = 3,
+	AS_LOG_LEVEL_TRACE = 4
 } as_log_level;
 
 /**
@@ -95,26 +88,24 @@ typedef bool (* as_log_callback)(
  *	- Ability to control the verbosity of log messages.
  *	- Direct where log messages are sent to.
  *
- *	Each @ref aerospike contains its own as_log instance: aerospike.log.
- *
  *	## Setting Log Level
  *
  *	To set the log level for the aerospike client, simply use 
  *	as_log_set_level() and pass in the client log to set.
  *
  *	~~~~~~~~~~{.c}
- *	as_log_set_level(&as->log, AS_LOG_LEVEL_INFO);
+ *	as_log_set_level(AS_LOG_LEVEL_INFO);
  *	~~~~~~~~~~
  *
  *	## Redirecting Log Output
  *
- *	By default, the logger sends log messages to STDERR. 
+ *	By default, the logger is not enabled.
  *
- *	To change where log messages are sent, simply define a new @ref as_log_callback,
+ *	To enable where log messages are sent, simply define a new @ref as_log_callback,
  *	and set it for the client using as_log_set_callback():
  *
  *	~~~~~~~~~~{.c}
- *	as_log_set_callback(&as->log, my_log_callback);
+ *	as_log_set_callback(my_log_callback);
  *	~~~~~~~~~~
  *
  *	Where the `my_log_callback` could be defined as 
@@ -142,46 +133,65 @@ typedef struct as_log_s {
 	/**
 	 *	Log Level
 	 */
-	cf_atomic32 level;
+	as_log_level level;
 
 	/**
 	 *	Logging Callback
 	 */
-	cf_atomic_p callback;
+	as_log_callback callback;
 
 } as_log;
+
+/******************************************************************************
+ *	GLOBAL VARIABLES
+ *****************************************************************************/
+
+extern as_log g_as_log;
+extern const char* as_log_level_strings[];
 
 /******************************************************************************
  *	FUNCTIONS
  *****************************************************************************/
 
 /**
- *	Initialize Log Context 
+ *	Set logging level for the global client log.
  *
- *	@relates as_log
- */
-as_log * as_log_init(as_log * log);
-
-/**
- *	Set the level for the given log.
- *
- *	@param log 		The log context.
  *	@param level 	The log level.
  *
- *	@return true on success. Otherwise false.
- *
  *	@relates as_log
  */
-bool as_log_set_level(as_log * log, as_log_level level);
+static inline void
+as_log_set_level(as_log_level level)
+{
+	g_as_log.level = level;
+}
 
 /**
- *	Set the callback for the given log
+ *	Set logging callback for the global client log.
  *
- *	@param log 		The log context.
  *	@param callback 	The log callback.
- *
- *	@return true on success. Otherwise false.
  *
  *	@relates as_log
  */
-bool as_log_set_callback(as_log * log, as_log_callback callback);
+static inline void
+as_log_set_callback(as_log_callback callback)
+{
+	g_as_log.callback = callback;
+}
+
+/**
+ *	Convert log level to a string.
+ *
+ *	@param level 	The log level.
+ *
+ *	@relates as_log
+ */
+static inline const char*
+as_log_level_tostring(as_log_level level)
+{
+	return as_log_level_strings[level];
+}
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif

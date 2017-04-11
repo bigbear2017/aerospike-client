@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -24,6 +24,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /******************************************************************************
  *	TYPES
  *****************************************************************************/
@@ -43,10 +47,10 @@ typedef enum as_bytes_type_e {
 	 */
 	AS_BYTES_INTEGER	= 1,
 
-	/** 
-	 *	Float
+	/**
+	 *	Double
 	 */
-	AS_BYTES_FLOAT		= 1,
+	AS_BYTES_DOUBLE		= 2,
 
 	/** 
 	 *	String
@@ -104,9 +108,14 @@ typedef enum as_bytes_type_e {
 	AS_BYTES_LDT		= 21,
 
 	/**
+	 *	GeoJSON Data
+	 */
+	AS_BYTES_GEOJSON	= 23,
+
+	/**
 	 *	Upper bounds for the enum
 	 */
-	AS_BYTES_TYPE_MAX	= 22
+	AS_BYTES_TYPE_MAX	= 24
 
 } as_bytes_type;
 
@@ -288,9 +297,9 @@ typedef struct as_bytes_s {
 	as_bytes_init(__bytes, 0);\
 	(__bytes)->type = AS_BYTES_BLOB;\
 	(__bytes)->free = false;\
-	(__bytes)->capacity = __capacity;\
+	(__bytes)->capacity = (__capacity);\
 	(__bytes)->size = 0;\
-	(__bytes)->value = (uint8_t *) alloca(__capacity * sizeof(uint8_t));
+	(__bytes)->value = (uint8_t*) alloca(sizeof(uint8_t) * (__capacity));
 
 
 /******************************************************************************
@@ -583,7 +592,7 @@ static inline uint32_t as_bytes_get_int32(const as_bytes * bytes, uint32_t index
 	return as_bytes_copy(bytes, index, (uint8_t *) value, 4);
 }
 
-/** 
+/**
  *	Read an int64_t from the given bytes.
  *
  *	~~~~~~~~~~{.c}
@@ -603,6 +612,45 @@ static inline uint32_t as_bytes_get_int64(const as_bytes * bytes, uint32_t index
 {
 	return as_bytes_copy(bytes, index, (uint8_t *) value, 8);
 }
+
+/**
+ *	Read a double from the given bytes.
+ *
+ *	~~~~~~~~~~{.c}
+ *	double value = 0;
+ *	uint32_t sz = as_bytes_get_double(&bytes, 0, &value);
+ *	if ( sz == 0 ) {
+ *		// sz == 0, means that an error occurred
+ *	}
+ *	~~~~~~~~~~
+ *
+ *	@return The number of bytes read and stored into value. 0 (zero) indicates
+ * 			an error has occurred.
+ *
+ *	@relatesalso as_bytes
+ */
+static inline uint32_t as_bytes_get_double(const as_bytes * bytes, uint32_t index, double * value)
+{
+	return as_bytes_copy(bytes, index, (uint8_t *) value, 8);
+}
+
+/**
+ *	Decode an integer in variable 7-bit format.
+ *	The high bit indicates if more bytes are used.
+ *
+ *	~~~~~~~~~~{.c}
+ *	uint32_t value = 0;
+ *	uint32_t sz = as_bytes_get_var_int(&bytes, 0, &value);
+ *	if ( sz == 0 ) {
+ *		// sz == 0, means that an error occurred
+ *	}
+ *	~~~~~~~~~~
+ *
+ *	@return The number of bytes copied in to value.
+ *
+ *	@relatesalso as_bytes
+ */
+uint32_t as_bytes_get_var_int(const as_bytes * bytes, uint32_t index, uint32_t * value);
 
 /******************************************************************************
  *	SET AT INDEX
@@ -631,7 +679,7 @@ bool as_bytes_set(as_bytes * bytes, uint32_t index, const uint8_t * value, uint3
  *	Set a byte at given index.
  *
  *	~~~~~~~~~~{.c}
- *	as_bytes_append_byte(&bytes, 'a');
+ *	as_bytes_set_byte(&bytes, 0, 'a');
  *	~~~~~~~~~~
  *
  *	@return On success, true. Otherwise an error occurred.
@@ -644,10 +692,10 @@ static inline bool as_bytes_set_byte(as_bytes * bytes, uint32_t index, uint8_t v
 }
 
 /**
- *	Set a byte at given index.
+ *	Set 16 bit integer at given index.
  *
  *	~~~~~~~~~~{.c}
- *	as_bytes_append_byte(&bytes, 'a');
+ *	as_bytes_set_int16(&bytes, 0, 1);
  *	~~~~~~~~~~
  *
  *	@return On success, true. Otherwise an error occurred.
@@ -660,10 +708,10 @@ static inline bool as_bytes_set_int16(as_bytes * bytes, uint32_t index, int16_t 
 }
 
 /**
- *	Set a byte at given index.
+ *	Set 32 bit integer at given index.
  *
  *	~~~~~~~~~~{.c}
- *	as_bytes_append_byte(&bytes, 'a');
+ *	as_bytes_set_int32(&bytes, 0, 2);
  *	~~~~~~~~~~
  *
  *	@return On success, true. Otherwise an error occurred.
@@ -676,10 +724,10 @@ static inline bool as_bytes_set_int32(as_bytes * bytes, uint32_t index, int32_t 
 }
 
 /**
- *	Set a byte at given index.
+ *	Set 64 bit integer at given index.
  *
  *	~~~~~~~~~~{.c}
- *	as_bytes_append_byte(&bytes, 'a');
+ *	as_bytes_set_int64(&bytes, 0, 3);
  *	~~~~~~~~~~
  *
  *	@return On success, true. Otherwise an error occurred.
@@ -691,6 +739,39 @@ static inline bool as_bytes_set_int64(as_bytes * bytes, uint32_t index, int64_t 
 	return as_bytes_set(bytes, index, (uint8_t *) &value, 8);
 }
 
+/**
+ *	Set double at given index.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_bytes_set_double(&bytes, 0, 4.4);
+ *	~~~~~~~~~~
+ *
+ *	@return On success, true. Otherwise an error occurred.
+ *
+ *	@relatesalso as_bytes
+ */
+static inline bool as_bytes_set_double(as_bytes * bytes, uint32_t index, double value)
+{
+	return as_bytes_set(bytes, index, (uint8_t *) &value, 8);
+}
+
+/**
+ *	Encode an integer in 7-bit format.
+ *	The high bit indicates if more bytes are used.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_bytes_set_var_int(&bytes, 0, 36);
+ *	~~~~~~~~~~
+ *
+ *	The `bytes` must be sufficiently sized for the data being written.
+ *	To ensure the `bytes` is allocated sufficiently, you will need to call
+ *	`as_bytes_ensure()`.
+ *
+ *	@return The number of bytes copied into byte array.
+ *
+ *	@relatesalso as_bytes
+ */
+uint32_t as_bytes_set_var_int(const as_bytes * bytes, uint32_t index, uint32_t value);
 
 /******************************************************************************
  *	APPEND TO THE END
@@ -767,7 +848,7 @@ static inline bool as_bytes_append_int32(as_bytes * bytes, int32_t value)
  *	Append an int64_t value.
  *
  *	~~~~~~~~~~{.c}
- *	as_bytes_append_int64(&bytes, 123;
+ *	as_bytes_append_int64(&bytes, 123);
  *	~~~~~~~~~~
  *
  *	@return On success, true. Otherwise an error occurred.
@@ -775,6 +856,22 @@ static inline bool as_bytes_append_int32(as_bytes * bytes, int32_t value)
  *	@relatesalso as_bytes
  */
 static inline bool as_bytes_append_int64(as_bytes * bytes, int64_t value)
+{
+	return as_bytes_append(bytes, (uint8_t *) &value, 8);
+}
+
+/**
+ *	Append a double value.
+ *
+ *	~~~~~~~~~~{.c}
+ *	as_bytes_append_double(&bytes, 123.456);
+ *	~~~~~~~~~~
+ *
+ *	@return On success, true. Otherwise an error occurred.
+ *
+ *	@relatesalso as_bytes
+ */
+static inline bool as_bytes_append_double(as_bytes * bytes, double value)
 {
 	return as_bytes_append(bytes, (uint8_t *) &value, 8);
 }
@@ -806,17 +903,14 @@ static inline bool as_bytes_append_int64(as_bytes * bytes, int64_t value)
 bool as_bytes_truncate(as_bytes * bytes, uint32_t n);
 
 /**
- *	Ensure the bytes buffer can handle `n` additional bytes.
- *
- *	Using the current size, we see if `size + n` is within the capacity of
- *	the bytes' buffer. If so, then return true.
- *	
- *	If `resize` is true and `size + n` exceeds the capacity of the bytes's 
- *	buffer, then resize the capacity of the buffer by `n` bytes. If the buffer
- *	was heap allocated, then `cf_realloc()` will be used to resize. If the buffer
- *	was stack allocated, it will be converted to a heap allocated buffer using
- *	cf_malloc() and then its contents will be copied into the new heap allocated
- *	buffer.
+ *	Ensure the bytes buffer can handle `capacity` bytes.
+ *		
+ *	If `resize` is true and `capacity` exceeds the capacity of the bytes's 
+ *	buffer, then resize the capacity of the buffer to `capacity` bytes. If the 
+ *	buffer was heap allocated, then `cf_realloc()` will be used to resize. If the 
+ *	buffer was stack allocated, it will be converted to a heap allocated buffer 
+ *	using cf_malloc() and then its contents will be copied into the new heap 
+ *	allocated  buffer.
  *
  *	If `resize` is false, and if the capacity is not sufficient, then return
  *	false.
@@ -826,14 +920,14 @@ bool as_bytes_truncate(as_bytes * bytes, uint32_t n);
  *	~~~~~~~~~~
  *	
  *	@param bytes	The bytes to ensure the capacity of.
- *	@param n		The number of additional bytes to ensure bytes can handle.
+ *	@param capacity	The total number of bytes to ensure bytes can handle.
  *	@param resize	If true and capacity is not sufficient, then resize the buffer.
  *
  *	@return On success, true. Otherwise an error occurred.
  *
  *	@relatesalso as_bytes
  */
-bool as_bytes_ensure(as_bytes * bytes, uint32_t n, bool resize);
+bool as_bytes_ensure(as_bytes * bytes, uint32_t capacity, bool resize);
 
 
 /**
@@ -899,3 +993,7 @@ uint32_t as_bytes_val_hashcode(const as_val * v);
  *	Internal helper function for getting the string representation of an as_val.
  */
 char * as_bytes_val_tostring(const as_val * v);
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif

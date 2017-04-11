@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -24,6 +24,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /******************************************************************************
  *	TYPES
  ******************************************************************************/
@@ -47,7 +51,7 @@
  *	The 3rd argument indicates whether the string value should be `free()`d 
  *	when as_string is destroyed.
  *
- *	To create and initialize a heap allocated as_integer, use as_integer_new():
+ *	To create and initialize a heap allocated as_string, use as_string_new():
  *	
  *	~~~~~~~~~~{.c}
  *	as_string * s = as_string_new("abc", false);
@@ -68,7 +72,7 @@
  *	as_string:
  *
  *	as_string_get() returns the contained value. If an error occurred, then
- *	NULL is returned. Possible errors is the as_integer instance is NULL.
+ *	NULL is returned. Possible errors is the as_string instance is NULL.
  *
  *	~~~~~~~~~~{.c}
  *	char * sval = as_string_get(i);
@@ -96,8 +100,6 @@
  *	as_string * i = as_string_fromval(val);
  *	~~~~~~~~~~
  *
- *
- *	
  *	@extends as_val
  *	@ingroup aerospike_t
  */
@@ -147,6 +149,22 @@ typedef struct as_string_s {
 as_string * as_string_init(as_string * string, char * value, bool free);
 
 /**
+ *	Initialize a stack allocated `as_string` and its length.
+ *
+ *	If free is true, then the string value will be freed when the as_string is destroyed.
+ *
+ *	@param string	The stack allocated as_string to initialize
+ *	@param value 	The NULL terminated string of character.
+ *	@param len		The length of the string.
+ *	@param free		If true, then the value will be freed when as_string is destroyed.
+ *
+ *	@return On success, the initialized string. Otherwise NULL.
+ *
+ *	@relatesalso as_string
+ */
+as_string * as_string_init_wlen(as_string * string, char * value, size_t len, bool free);
+
+/**
  *	Create and initialize a new heap allocated `as_string`.
  *
  *	If free is true, then the string value will be freed when the as_string is destroyed.
@@ -159,6 +177,21 @@ as_string * as_string_init(as_string * string, char * value, bool free);
  *	@relatesalso as_string
  */
 as_string * as_string_new(char * value, bool free);
+
+/**
+ *	Create and initialize a new heap allocated `as_string` and its length.
+ *
+ *	If free is true, then the string value will be freed when the as_string is destroyed.
+ *
+ *	@param value 	The NULL terminated string of character.
+ *	@param len		The length of the string.
+ *	@param free		If true, then the value will be freed when as_string is destroyed.
+ *
+ *	@return On success, the new string. Otherwise NULL.
+ *
+ *	@relatesalso as_string
+ */
+as_string * as_string_new_wlen(char * value, size_t len, bool free);
 
 /**
  *	Create and initialize a new heap allocated `as_string`.
@@ -291,11 +324,22 @@ char * as_string_val_tostring(const as_val * v);
 
 /**
  *	@private
- *	Copy null terminated src to trg up to a maximum length.
- *	If maximum length reached, null terminate last character and
+ *	Copy null terminated src to trg up to a maximum size.
+ *	If maximum size reached, null terminate last character and
  *  and return true that truncation occurred.
  *
- *  as_strncpy does not pad unused bytes with zeroes like the 
+ *  as_strncpy does not pad unused bytes with zeroes like the
  *  standard strncpy.
+ *
+ *	~~~~~~~~~~{.c}
+ *		char target[64];
+ *		as_strncpy(target, "source string", sizeof(target));
+ *	~~~~~~~~~~
+ *
+ *	@relatesalso as_string
  */
-bool as_strncpy(char* trg, const char* src, int len);
+bool as_strncpy(char* trg, const char* src, int size);
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif
