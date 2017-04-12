@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -22,6 +22,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /******************************************************************************
  *	TYPES
  *****************************************************************************/
@@ -41,6 +45,8 @@ typedef enum as_val_t {
     AS_REC          = 7,
     AS_PAIR         = 8,
     AS_BYTES        = 9,
+	AS_DOUBLE       = 10,
+    AS_GEOJSON      = 11,
     AS_VAL_T_MAX
 } __attribute__((packed)) as_val_t;
 
@@ -183,3 +189,6 @@ static inline as_val * as_val_cons(as_val * val, as_val_t type, bool free)
     return val;
 }
 
+#ifdef __cplusplus
+} // end extern "C"
+#endif

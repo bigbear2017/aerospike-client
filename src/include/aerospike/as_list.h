@@ -1,5 +1,5 @@
 /* 
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -14,10 +14,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-
 #pragma once
 
 #include <aerospike/as_bytes.h>
+#include <aerospike/as_double.h>
 #include <aerospike/as_integer.h>
 #include <aerospike/as_iterator.h>
 #include <aerospike/as_string.h>
@@ -26,6 +26,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -64,11 +68,6 @@ typedef struct as_list_s {
 	 *	You can cast as_list to as_val.
 	 */
 	as_val _;
-
-	/**
-	 *	Pointer to the data for this list.
-	 */
-	void * data;
 
 	/**
 	 * Hooks for subtypes of as_list to implement.
@@ -129,7 +128,7 @@ typedef struct as_list_hooks_s {
 	 *
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	as_val * (* get)(const as_list * list, const uint32_t index);
+	as_val * (* get)(const as_list * list, uint32_t index);
 
 	/**
 	 *	Get the int64_t value at a given index of the list.
@@ -139,7 +138,17 @@ typedef struct as_list_hooks_s {
 	 *	
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	int64_t (* get_int64)(const as_list * list, const uint32_t index);
+	int64_t (* get_int64)(const as_list * list, uint32_t index);
+
+	/**
+	 *	Get the double value at a given index of the list.
+	 *
+	 *	@param list 	The list to get the value from.
+	 *	@param index 	The index of the value.
+	 *
+	 *	@return The value at the given index on success. Otherwie NULL.
+	 */
+	double (* get_double)(const as_list * list, uint32_t index);
 
 	/**
 	 *	Get the NULL-terminated string value at a given index of the list.
@@ -149,7 +158,7 @@ typedef struct as_list_hooks_s {
 	 *
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	char * (* get_str)(const as_list * list, const uint32_t index);
+	char * (* get_str)(const as_list * list, uint32_t index);
 
 	/***************************************************************************
 	 *	set hooks
@@ -164,7 +173,7 @@ typedef struct as_list_hooks_s {
 	 *
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	int (* set)(as_list * list, const uint32_t index, as_val * value);
+	int (* set)(as_list * list, uint32_t index, as_val * value);
 
 	/**
 	 *	Set an int64_t value at the given index of the list.
@@ -175,7 +184,18 @@ typedef struct as_list_hooks_s {
 	 *
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	int (* set_int64)(as_list * list, const uint32_t index, int64_t value);
+	int (* set_int64)(as_list * list, uint32_t index, int64_t value);
+
+	/**
+	 *	Set a double value at the given index of the list.
+	 *
+	 *	@param list 	The list to get the value from.
+	 *	@param index 	The index of the value.
+	 *	@param value 	The value for the given index.
+	 *
+	 *	@return The value at the given index on success. Otherwie NULL.
+	 */
+	int (* set_double)(as_list * list, uint32_t index, double value);
 
 	/**
 	 *	Set a NULL-terminated string value at the given index of the list.
@@ -186,7 +206,55 @@ typedef struct as_list_hooks_s {
 	 *
 	 *	@return The value at the given index on success. Otherwie NULL.
 	 */
-	int (* set_str)(as_list * list, const uint32_t index, const char * value);
+	int (* set_str)(as_list * list, uint32_t index, const char * value);
+
+	/***************************************************************************
+	 *	insert hooks
+	 **************************************************************************/
+
+	/**
+	 *	Insert a value at the given index of the list.
+	 *
+	 *	@param list 	The list to insert the value into.
+	 *	@param index 	The index of the value.
+	 *	@param value 	The value for the given index.
+	 *
+	 *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+	 */
+	int (* insert)(as_list * list, uint32_t index, as_val * value);
+
+	/**
+	 *	Insert an int64_t value at the given index of the list.
+	 *
+	 *	@param list 	The list to insert the value into.
+	 *	@param index 	The index of the value.
+	 *	@param value 	The value for the given index.
+	 *
+	 *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+	 */
+	int (* insert_int64)(as_list * list, uint32_t index, int64_t value);
+
+	/**
+	 *	Insert a double value at the given index of the list.
+	 *
+	 *	@param list 	The list to insert the value into.
+	 *	@param index 	The index of the value.
+	 *	@param value 	The value for the given index.
+	 *
+	 *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+	 */
+	int (* insert_double)(as_list * list, uint32_t index, double value);
+
+	/**
+	 *	Insert a NULL-terminated string value at the given index of the list.
+	 *
+	 *	@param list 	The list to insert the value into.
+	 *	@param index 	The index of the value.
+	 *	@param value 	The value for the given index.
+	 *
+	 *	@return AS_ARRAYLIST_OK on success. Otherwise an error occurred.
+	 */
+	int (* insert_str)(as_list * list, uint32_t index, const char * value);
 
 	/***************************************************************************
 	 *	append hooks
@@ -211,6 +279,16 @@ typedef struct as_list_hooks_s {
 	 *	@return 0 on success. Otherwise an error occurred.
 	 */
 	int (* append_int64)(as_list * list, int64_t value);
+
+	/**
+	 *	Append a double value to the list.
+	 *
+	 *	@param list		The list to append to.
+	 *	@param value	The value to append to the list.
+	 *
+	 *	@return 0 on success. Otherwise an error occurred.
+	 */
+	int (* append_double)(as_list * list, double value);
 
 	/**
 	 *	Append a NULL-terminates string value to the list.
@@ -247,6 +325,16 @@ typedef struct as_list_hooks_s {
 	int (* prepend_int64)(as_list * list, int64_t value);
 
 	/**
+	 *	Prepend a double value to the list.
+	 *
+	 *	@param list		The list to prepend to.
+	 *	@param value	The value to prepend to the list.
+	 *
+	 *	@return 0 on success. Otherwise an error occurred.
+	 */
+	int (* prepend_double)(as_list * list, double value);
+
+	/**
 	 *	Prepend a NULL-terminates string value to the list.
 	 *
 	 *	@param list		The list to prepend to.
@@ -255,11 +343,49 @@ typedef struct as_list_hooks_s {
 	 *	@return 0 on success. Otherwise an error occurred.
 	 */
 	int (* prepend_str)(as_list * list, const char * value);
-	
+
+	/***************************************************************************
+	 *	remove hook
+	 **************************************************************************/
+
+	/**
+	 *	Remove element at specified index.
+	 *
+	 *	Any elements beyond specified index will be shifted so their indexes
+	 *	decrease by 1. The element at specified index will be destroyed.
+	 *
+	 *	@param list 	The list.
+	 *	@param index 	The index of the element to remove.
+	 *
+	 *	@return 0 on success. Otherwise an error occurred.
+	 */
+	int (* remove)(as_list * list, uint32_t index);
 
 	/***************************************************************************
 	 *	accessor and modifier hooks
 	 **************************************************************************/
+
+	/**
+	 *	Append all elements of list2, in order, to list. No new list object is
+	 *	created.
+	 *
+	 *	@param list 	The list to append to.
+	 *	@param list2 	The list from which to append.
+	 *
+	 *	@return 0 on success. Otherwise an error occurred.
+	 */
+	int (* concat)(as_list * list, const as_list * list2);
+
+	/**
+	 *	Delete (and destroy) all elements at and beyond specified index. Capacity is
+	 *	not reduced.
+	 *
+	 *	@param list 	The list to trim.
+	 *	@param index	The index from which to trim.
+	 *
+	 *	@return 0 on success. Otherwise an error occurred.
+	 */
+	int (* trim)(as_list * list, uint32_t index);
 
 	/**
 	 *	Return the first element in the list.
@@ -344,36 +470,33 @@ typedef struct as_list_hooks_s {
  *
  *	@param list		The list to initialize.
  *	@param free		If true, then as_list_destroy() will free the list.
- *	@param data		Data for the list.
  *	@param hooks	Implementaton for the list interface.
  *
  *	@return On success, the initialized list. Otherwise NULL.
  *	@relatesalso as_list
  */
-as_list * as_list_cons(as_list * list, bool free, void * data, const as_list_hooks * hooks);
+as_list * as_list_cons(as_list * list, bool free, const as_list_hooks * hooks);
 
 /**
  *	Initialize a stack allocated list.
  *	
  *	@param list		Stack allocated list to initialize.
- *	@param data		Data for the list.
  *	@param hooks	Implementaton for the list interface.
  *	
  *	@return On succes, the initialized list. Otherwise NULL.
  *	@relatesalso as_list
  */
-as_list * as_list_init(as_list * list, void * data, const as_list_hooks * hooks);
+as_list * as_list_init(as_list * list, const as_list_hooks * hooks);
 
 /**
  *	Create and initialize a new heap allocated list.
  *	
- *	@param data		Data for the list.
  *	@param hooks	Implementaton for the list interface.
  *	
  *	@return On succes, a new list. Otherwise NULL.
  *	@relatesalso as_list
  */
-as_list * as_list_new(void * data, const as_list_hooks * hooks);
+as_list * as_list_new(const as_list_hooks * hooks);
 
 /**
  *	Destroy the list and associated resources.
@@ -419,6 +542,36 @@ static inline uint32_t as_list_size(as_list * list)
 /******************************************************************************
  *	ACCESSOR AND MODIFIER FUNCTIONS
  *****************************************************************************/
+
+/**
+ *	Append all elements of list2, in order, to list. No new list object is
+ *	created.
+ *
+ *	@param list 	The list to append to.
+ *	@param list2 	The list from which to append.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_concat(as_list * list, const as_list * list2)
+{
+	return as_util_hook(concat, 1, list, list2);
+}
+
+/**
+ *	Delete (and destroy) all elements at and beyond specified index. Capacity is
+ *	not reduced.
+ *
+ *	@param list 	The list to trim.
+ *	@param index	The index from which to trim.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_trim(as_list * list, uint32_t index)
+{
+	return as_util_hook(trim, 1, list, index);
+}
 
 /**
  *	The first element in the list.
@@ -487,7 +640,7 @@ static inline as_list * as_list_take(const as_list * list, uint32_t n)
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline as_val * as_list_get(const as_list * list, const uint32_t i) 
+static inline as_val * as_list_get(const as_list * list, uint32_t i)
 {
 	return as_util_hook(get, NULL, list, i);
 }
@@ -501,9 +654,23 @@ static inline as_val * as_list_get(const as_list * list, const uint32_t i)
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline int64_t as_list_get_int64(const as_list * list, const uint32_t i) 
+static inline int64_t as_list_get_int64(const as_list * list, uint32_t i)
 {
 	return as_util_hook(get_int64, 0, list, i);
+}
+
+/**
+ *	Get the value at specified index as a double.
+ *
+ *	@param list		The list to get the value from.
+ *	@param i		The index of the value to get from the list.
+ *
+ *	@return On success, the value at the given index. Otherwise NULL.
+ *	@relatesalso as_list
+ */
+static inline double as_list_get_double(const as_list * list, uint32_t i)
+{
+	return as_util_hook(get_double, 0.0, list, i);
 }
 
 /**
@@ -515,7 +682,7 @@ static inline int64_t as_list_get_int64(const as_list * list, const uint32_t i)
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline char * as_list_get_str(const as_list * list, const uint32_t i) 
+static inline char * as_list_get_str(const as_list * list, uint32_t i)
 {
 	return as_util_hook(get_str, NULL, list, i);
 }
@@ -529,9 +696,23 @@ static inline char * as_list_get_str(const as_list * list, const uint32_t i)
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline as_integer * as_list_get_integer(const as_list * list, const uint32_t i) 
+static inline as_integer * as_list_get_integer(const as_list * list, uint32_t i)
 {
 	return as_integer_fromval(as_list_get(list, i));
+}
+
+/**
+ *	Get the value at specified index as an as_double.
+ *
+ *	@param list		The list to get the value from.
+ *	@param i		The index of the value to get from the list.
+ *
+ *	@return On success, the value at the given index. Otherwise NULL.
+ *	@relatesalso as_list
+ */
+static inline as_double * as_list_get_as_double(const as_list * list, uint32_t i)
+{
+	return as_double_fromval(as_list_get(list, i));
 }
 
 /**
@@ -543,7 +724,7 @@ static inline as_integer * as_list_get_integer(const as_list * list, const uint3
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline as_string * as_list_get_string(const as_list * list, const uint32_t i) 
+static inline as_string * as_list_get_string(const as_list * list, uint32_t i)
 {
 	return as_string_fromval(as_list_get(list, i));
 }
@@ -557,7 +738,7 @@ static inline as_string * as_list_get_string(const as_list * list, const uint32_
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline as_bytes * as_list_get_bytes(const as_list * list, const uint32_t i) 
+static inline as_bytes * as_list_get_bytes(const as_list * list, uint32_t i)
 {
 	return as_bytes_fromval(as_list_get(list, i));
 }
@@ -571,7 +752,7 @@ static inline as_bytes * as_list_get_bytes(const as_list * list, const uint32_t 
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline as_list * as_list_get_list(const as_list * list, const uint32_t i) 
+static inline as_list * as_list_get_list(const as_list * list, uint32_t i)
 {
 	as_val * v = as_list_get(list, i);
 	return (as_list *) (v && v->type == AS_LIST ? v : NULL);
@@ -586,12 +767,11 @@ static inline as_list * as_list_get_list(const as_list * list, const uint32_t i)
  *	@return On success, the value at the given index. Otherwise NULL.
  *	@relatesalso as_list
  */
-static inline struct as_map_s * as_list_get_map(const as_list * list, const uint32_t i) 
+static inline struct as_map_s * as_list_get_map(const as_list * list, uint32_t i)
 {
 	as_val * v = as_list_get(list, i);
 	return (struct as_map_s *) (v && v->type == AS_MAP ? v : NULL);
 }
-
 
 /******************************************************************************
  *	SET FUNCTIONS
@@ -607,7 +787,7 @@ static inline struct as_map_s * as_list_get_map(const as_list * list, const uint
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set(as_list * list, const uint32_t i, as_val * value) 
+static inline int as_list_set(as_list * list, uint32_t i, as_val * value)
 {
 	return as_util_hook(set, 1, list, i, value);
 }
@@ -622,9 +802,24 @@ static inline int as_list_set(as_list * list, const uint32_t i, as_val * value)
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_int64(as_list * list, const uint32_t i, int64_t value) 
+static inline int as_list_set_int64(as_list * list, uint32_t i, int64_t value)
 {
 	return as_util_hook(set_int64, 1, list, i, value);
+}
+
+/**
+ *	Set a double at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index of the value to set in the list.
+ *	@param value	The value to set at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_set_double(as_list * list, uint32_t i, double value)
+{
+	return as_util_hook(set_double, 1, list, i, value);
 }
 
 /**
@@ -637,7 +832,7 @@ static inline int as_list_set_int64(as_list * list, const uint32_t i, int64_t va
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_str(as_list * list, const uint32_t i, const char * value) 
+static inline int as_list_set_str(as_list * list, uint32_t i, const char * value)
 {
 	return as_util_hook(set_str, 1, list, i, value);
 }
@@ -652,7 +847,22 @@ static inline int as_list_set_str(as_list * list, const uint32_t i, const char *
  *	@return 0 on success. Otherwise an error ocucrred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_integer(as_list * list, const uint32_t i, as_integer * value) 
+static inline int as_list_set_integer(as_list * list, uint32_t i, as_integer * value)
+{
+	return as_list_set(list, i, (as_val *) value);
+}
+
+/**
+ *	Set an as_double at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index of the value to set in the list.
+ *	@param value	The value to set at the given index.
+ *
+ *	@return 0 on success. Otherwise an error ocucrred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_set_as_double(as_list * list, uint32_t i, as_double * value)
 {
 	return as_list_set(list, i, (as_val *) value);
 }
@@ -667,7 +877,7 @@ static inline int as_list_set_integer(as_list * list, const uint32_t i, as_integ
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_string(as_list * list, const uint32_t i, as_string * value) 
+static inline int as_list_set_string(as_list * list, uint32_t i, as_string * value)
 {
 	return as_list_set(list, i, (as_val *) value);
 }
@@ -682,7 +892,7 @@ static inline int as_list_set_string(as_list * list, const uint32_t i, as_string
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_bytes(as_list * list, const uint32_t i, as_bytes * value) 
+static inline int as_list_set_bytes(as_list * list, uint32_t i, as_bytes * value)
 {
 	return as_list_set(list, i, (as_val *) value);
 }
@@ -697,7 +907,7 @@ static inline int as_list_set_bytes(as_list * list, const uint32_t i, as_bytes *
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_list(as_list * list, const uint32_t i, as_list * value) 
+static inline int as_list_set_list(as_list * list, uint32_t i, as_list * value)
 {
 	return as_list_set(list, i, (as_val *) value);
 }
@@ -712,9 +922,166 @@ static inline int as_list_set_list(as_list * list, const uint32_t i, as_list * v
  *	@return 0 on success. Otherwise an error occurred.
  *	@relatesalso as_list
  */
-static inline int as_list_set_map(as_list * list, const uint32_t i, struct as_map_s * value) 
+static inline int as_list_set_map(as_list * list, uint32_t i, struct as_map_s * value)
 {
 	return as_list_set(list, i, (as_val *) value);
+}
+
+/******************************************************************************
+ *	INSERT FUNCTIONS
+ *****************************************************************************/
+
+/**
+ *  Insert a value at the specified index of the list.
+ *
+ *	Any elements at and beyond specified index will be shifted so their indexes
+ *	increase by 1. It's ok to insert beyond the current end of the list.
+ *
+ *	@param list 	The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert(as_list * list, uint32_t i, as_val * value)
+{
+	return as_util_hook(insert, 1, list, i, value);
+}
+
+/**
+ *	Insert an int64_t at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_int64(as_list * list, uint32_t i, int64_t value)
+{
+	return as_util_hook(insert_int64, 1, list, i, value);
+}
+
+/**
+ *	Insert a double at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_double(as_list * list, uint32_t i, double value)
+{
+	return as_util_hook(insert_double, 1, list, i, value);
+}
+
+/**
+ *	Insert a NULL-terminated string at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_str(as_list * list, uint32_t i, const char * value)
+{
+	return as_util_hook(insert_str, 1, list, i, value);
+}
+
+/**
+ *	Insert an as_integer at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error ocucrred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_integer(as_list * list, uint32_t i, as_integer * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
+}
+
+/**
+ *	Insert an as_double at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error ocucrred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_as_double(as_list * list, uint32_t i, as_double * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
+}
+
+/**
+ *	Insert an as_string at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_string(as_list * list, uint32_t i, as_string * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
+}
+
+/**
+ *	Insert an as_bytes at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_bytes(as_list * list, uint32_t i, as_bytes * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
+}
+
+/**
+ *	Insert an as_list at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_list(as_list * list, uint32_t i, as_list * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
+}
+
+/**
+ *	Insert an as_map at specified index as an as_val.
+ *
+ *	@param list		The list.
+ *	@param i		The index at which to insert.
+ *	@param value	The value to insert at the given index.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_insert_map(as_list * list, uint32_t i, struct as_map_s * value)
+{
+	return as_list_insert(list, i, (as_val *) value);
 }
 
 /******************************************************************************
@@ -750,6 +1117,20 @@ static inline int as_list_append_int64(as_list * list, int64_t value)
 }
 
 /**
+ *	Append a double to the list.
+ *
+ *	@param list		The list.
+ *	@param value	The value to append to the list.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_append_double(as_list * list, double value)
+{
+	return as_util_hook(append_double, 1, list, value);
+}
+
+/**
  *	Append a NULL-terminated string to the list.
  *
  *	@param list		The list.
@@ -773,6 +1154,20 @@ static inline int as_list_append_str(as_list * list, const char * value)
  *	@relatesalso as_list
  */
 static inline int as_list_append_integer(as_list * list, as_integer * value) 
+{
+	return as_list_append(list, (as_val *) value);
+}
+
+/**
+ *	Append an as_double to the list.
+ *
+ *	@param list		The list.
+ *	@param value	The value to append to the list.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_append_as_double(as_list * list, as_double * value)
 {
 	return as_list_append(list, (as_val *) value);
 }
@@ -866,6 +1261,20 @@ static inline int as_list_prepend_int64(as_list * list, int64_t value)
 }
 
 /**
+ *	Prepend a double value to the list.
+ *
+ *	@param list		The list.
+ *	@param value	The value to prepend to the list.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_prepend_double(as_list * list, double value)
+{
+	return as_util_hook(prepend_double, 1, list, value);
+}
+
+/**
  *	Prepend a NULL-terminated string to the list.
  *
  *	@param list		The list.
@@ -889,6 +1298,20 @@ static inline int as_list_prepend_str(as_list * list, const char * value)
  *	@relatesalso as_list
  */
 static inline int as_list_prepend_integer(as_list * list, as_integer * value) 
+{
+	return as_list_prepend(list, (as_val *) value);
+}
+
+/**
+ *	Prepend an as_double to the list.
+ *
+ *	@param list		The list.
+ *	@param value	The value to prepend to the list.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_prepend_as_double(as_list * list, as_double * value)
 {
 	return as_list_prepend(list, (as_val *) value);
 }
@@ -947,6 +1370,27 @@ static inline int as_list_prepend_list(as_list * list, as_list * value)
 static inline int as_list_prepend_map(as_list * list, struct as_map_s * value) 
 {
 	return as_list_prepend(list, (as_val *) value);
+}
+
+/******************************************************************************
+ *	REMOVE FUNCTION
+ *****************************************************************************/
+
+/**
+ *	Remove element at specified index.
+ *
+ *	Any elements beyond specified index will be shifted so their indexes
+ *	decrease by 1. The element at specified index will be destroyed.
+ *
+ *	@param list 	The list.
+ *	@param index 	The index of the element to remove.
+ *
+ *	@return 0 on success. Otherwise an error occurred.
+ *	@relatesalso as_list
+ */
+static inline int as_list_remove(as_list * list, uint32_t index)
+{
+	return as_util_hook(remove, 1, list, index);
 }
 
 /******************************************************************************
@@ -1041,3 +1485,6 @@ uint32_t as_list_val_hashcode(const as_val * v);
  */
 char * as_list_val_tostring(const as_val * v);
 
+#ifdef __cplusplus
+} // end extern "C"
+#endif

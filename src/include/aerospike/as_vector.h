@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2014 Aerospike, Inc.
+ * Copyright 2008-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -19,6 +19,10 @@
 #include <citrusleaf/alloc.h>
 #include <citrusleaf/cf_types.h>
 #include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /******************************************************************************
  *	TYPES
@@ -78,15 +82,8 @@ typedef struct as_vector_s {
 /**
  *	Initialize a stack allocated as_vector, with item storage on the heap.
  */
-static inline void
-as_vector_init(as_vector* vector, uint32_t item_size, uint32_t capacity)
-{
-	vector->list = cf_malloc(capacity * item_size);
-	vector->capacity = capacity;
-	vector->item_size = item_size;
-	vector->size = 0;
-	vector->flags = 1;
-}
+void
+as_vector_init(as_vector* vector, uint32_t item_size, uint32_t capacity);
 
 /**
  *	Create a heap allocated as_vector, with item storage on the heap.
@@ -162,6 +159,28 @@ bool
 as_vector_append_unique(as_vector* vector, void* value);
 
 /**
+ *	Return shallow heap copy of vector.
+ */
+void*
+as_vector_to_array(as_vector* vector, uint32_t* size);
+
+/**
+ *  Reserve a new slot in the vector.  Increase capacity if necessary.
+ *	Return reference to item.  The item is initialized to zeroes.
+ */
+static inline void*
+as_vector_reserve(as_vector* vector)
+{
+	if (vector->size >= vector->capacity) {
+		as_vector_increase_capacity(vector);
+	}
+	void* item = (byte *)vector->list + (vector->size * vector->item_size);
+	memset(item, 0, vector->item_size);
+	vector->size++;
+	return item;
+}
+
+/**
  *  Move item row position in vector.
  */
 static inline void
@@ -169,3 +188,7 @@ as_vector_move(as_vector* vector, uint32_t source, uint32_t target)
 {
 	memcpy((byte *)vector->list + (target * vector->item_size), (byte *)vector->list + (source * vector->item_size), vector->item_size);
 }
+
+#ifdef __cplusplus
+} // end extern "C"
+#endif

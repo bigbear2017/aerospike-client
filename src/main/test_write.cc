@@ -6,12 +6,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string>
+#include <iostream>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_key.h>
 #include <aerospike/as_error.h>
 #include <aerospike/as_record.h>
 #include <aerospike/as_status.h>
+#include <aerospike/as_operations.h>
+#include <aerospike/as_key.h>
+#include <aerospike/as_record_iterator.h>
+#include <aerospike/as_config.h>
 
 using namespace std;
 
@@ -27,47 +32,11 @@ char aeroKeyStr[MAX_KEY_STR_SIZE] = "aeroTestKey";
 int aeroPort = 3000;
 as_key aeroKey;
 
-void connectToAerospike( aerospike & as ); 
-void dumpRecord( as_record & pRec );
-void initKey( as_key & key );
+//void connectToAerospike( aerospike & as ); 
+//void dumpRecord( as_record & pRec );
+//void initKey( as_key & key );
 
-int main( int argc, char * argc [] ) { 
-    aerospike as;
-    connectToAerospike( &as ); //first connect to aerospike
-    as_error err; 
-
-    for( int i = 0; i < 100000; i++ { 
-    as_record record; //create record 
-    as_record_init( &record, 2 );
-    as_record_set_int64( &record, "bin1", 1234 );
-    as_record_set_str( &record, "bin2", "bin2-data");
-
-    //dumpRecord( &record );
-
-    initKey( &aeroKey );
-
-    if( aerospike_key_put( &as, &err, NULL, aeroKey, &record ) != AEROSPIKE_OK ) {
-        cout << "there is some problems, I can not put record into aerospike!" << endl;
-        aerospikeCleanUp(& as);
-        exit(-1);
-    }
-
-    as_record * pRec = NULL;
-    if( aerospike_key_get( &as, &err, NULL, aeroKey, &pRec ) != AEROSPIKE_OK ) {
-        cout << "there is some problems, I can not read record from aerospike!" << endl;
-        aerospikeCleanUp( &as );
-        exit( -1 );
-    }
-
-    dumpRecord( pRec );
-
-    as_record_destroy( pRec );
-    }
-
-    return 0;
-}
-
-void initKey() {
+void initKey( as_key & key ) {
     as_key_init_str( &aeroKey, aeroNameSpace, aeroSet, aeroKeyStr );
 }
 
@@ -76,16 +45,16 @@ void connectToAerospike( aerospike & tas ) {
     as_config_init(&config);
 
     if( !as_config_add_hosts(&config, aeroHost, aeroPort) ) {
-        cout << "Invalid host(s) : " << aeroHost << " and port : " << port << endl;
+        cout << "Invalid host(s) : " << aeroHost << " and port : " << aeroPort << endl;
     }
 
-    aerospike_init( as, &config );
+    aerospike_init( &tas, &config );
     
     as_error err;
 
-    if ( aerospike_connect(tas, &err ) != AEROSPIKE_ok ) {
+    if ( aerospike_connect(&tas, &err ) != AEROSPIKE_OK ) {
         cout << "aerospike_connect() returned " << err.code << "-" << err.message << endl;
-        aerospike_destroy( tas );
+        aerospike_destroy( &tas );
         exit( -1 );
     }
 
@@ -105,7 +74,7 @@ void dumpRecord( const as_record * pRec ) {
 
     uint16_t numBins = as_record_numbins( pRec );
 
-    cout << "Generation :" << pRec->gen << " TTL: " << pRec-ttl << " NumBins: " << numBins << endl;
+    cout << "Generation :" << pRec->gen << " TTL: " << pRec->ttl << " NumBins: " << numBins << endl;
 
     as_record_iterator iter;
     as_record_iterator_init( &iter, pRec );
@@ -122,3 +91,39 @@ void dumpRecord( const as_record * pRec ) {
 
     as_record_iterator_destroy( &iter );
 }
+int main( int argc, char * argv [] ) { 
+    aerospike as;
+    connectToAerospike( as ); //first connect to aerospike
+    as_error err; 
+
+    for( int i = 0; i < 100000; i++ ) {
+    as_record record; //create record 
+    as_record_init( &record, 2 );
+    as_record_set_int64( &record, "bin1", 1234 );
+    as_record_set_str( &record, "bin2", "bin2-data");
+
+    dumpRecord( &record );
+
+    initKey( aeroKey );
+
+    if( aerospike_key_put( &as, &err, NULL, &aeroKey, &record ) != AEROSPIKE_OK ) {
+        cout << "there is some problems, I can not put record into aerospike!" << endl;
+        //aerospikeCleanUp(& as);
+        exit(-1);
+    }
+
+    as_record * pRec = NULL;
+    if( aerospike_key_get( &as, &err, NULL, &aeroKey, &pRec ) != AEROSPIKE_OK ) {
+        cout << "there is some problems, I can not read record from aerospike!" << endl;
+        //aerospikeCleanUp( &as );
+        exit( -1 );
+    }
+
+    dumpRecord( pRec );
+
+    as_record_destroy( pRec );
+    }
+
+    return 0;
+}
+
