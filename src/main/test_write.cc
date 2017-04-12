@@ -45,6 +45,7 @@ void initKey( as_key & key, const string & keyValue) {
 void connectToAerospike( aerospike & tas ) {
     as_config config;
     as_config_init(&config);
+    config.policies.timeout = 2000; //set timeout to 2 seconds
 
     if( !as_config_add_hosts(&config, aeroHost, aeroPort) ) {
         cout << "Invalid host(s) : " << aeroHost << " and port : " << aeroPort << endl;
@@ -125,14 +126,22 @@ int main( int argc, char * argv [] ) {
     
     initKey( aeroKey, ss.str() );
 
-    if( aerospike_key_put( &as, &err, NULL, &aeroKey, &record ) != AEROSPIKE_OK ) {
+    
+    as_policy_write wpolicy;
+    as_policy_write_init(&wpolicy);
+    wpolicy.timeout = 1000;
+
+    if( aerospike_key_put( &as, &err, &wpolicy, &aeroKey, &record ) != AEROSPIKE_OK ) {
         cout << "there is some problems, I can not put record into aerospike!" << endl;
         //aerospikeCleanUp(& as);
         exit(-1);
     }
 
     as_record * pRec = NULL;
-    if( aerospike_key_get( &as, &err, NULL, &aeroKey, &pRec ) != AEROSPIKE_OK ) {
+    as_policy_read rpolicy;
+    as_policy_read_init(&rpolicy);
+    rpolicy.timeout = 1000;
+    if( aerospike_key_get( &as, &err, &rpolicy, &aeroKey, &pRec ) != AEROSPIKE_OK ) {
         cout << "there is some problems, I can not read record from aerospike!" << endl;
         //aerospikeCleanUp( &as );
         exit( -1 );
