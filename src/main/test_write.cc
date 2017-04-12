@@ -36,12 +36,13 @@ int main( int argc, char * argc [] ) {
     connectToAerospike( &as ); //first connect to aerospike
     as_error err; 
 
+    for( int i = 0; i < 100000; i++ { 
     as_record record; //create record 
     as_record_init( &record, 2 );
     as_record_set_int64( &record, "bin1", 1234 );
     as_record_set_str( &record, "bin2", "bin2-data");
 
-    dumpRecord( &record );
+    //dumpRecord( &record );
 
     initKey( &aeroKey );
 
@@ -61,6 +62,7 @@ int main( int argc, char * argc [] ) {
     dumpRecord( pRec );
 
     as_record_destroy( pRec );
+    }
 
     return 0;
 }
