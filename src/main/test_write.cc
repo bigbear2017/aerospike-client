@@ -5,8 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_key.h>
@@ -36,8 +38,8 @@ as_key aeroKey;
 //void dumpRecord( as_record & pRec );
 //void initKey( as_key & key );
 
-void initKey( as_key & key ) {
-    as_key_init_str( &aeroKey, aeroNameSpace, aeroSet, aeroKeyStr );
+void initKey( as_key & key, const string & keyValue) {
+    as_key_init_str( &aeroKey, aeroNameSpace, aeroSet, keyValue.c_str());
 }
 
 void connectToAerospike( aerospike & tas ) {
@@ -95,16 +97,33 @@ int main( int argc, char * argv [] ) {
     aerospike as;
     connectToAerospike( as ); //first connect to aerospike
     as_error err; 
-
+	
+    clock_t start = clock();
     for( int i = 0; i < 100000; i++ ) {
     as_record record; //create record 
     as_record_init( &record, 2 );
     as_record_set_int64( &record, "bin1", 1234 );
-    as_record_set_str( &record, "bin2", "bin2-data");
+    as_record_set_int64( &record, "bin2", 1234 );
+    as_record_set_int64( &record, "bin3", 1234 );
+    as_record_set_int64( &record, "bin4", 1234 );
+    as_record_set_int64( &record, "bin5", 1234 );
+    as_record_set_int64( &record, "bin6", 1234 );
+    as_record_set_int64( &record, "bin7", 1234 );
+    as_record_set_int64( &record, "bin8", 1234 );
+    as_record_set_int64( &record, "bin9", 1234 );
+    as_record_set_int64( &record, "bin10", 1234 );
+    as_record_set_str( &record, "bin11", "bin2-data");
+    as_record_set_str( &record, "bin12", "bin2-data");
+    as_record_set_str( &record, "bin13", "bin2-data");
+    as_record_set_str( &record, "bin14", "bin2-data");
+    as_record_set_str( &record, "bin15", "bin2-data");
 
-    dumpRecord( &record );
+    //dumpRecord( &record );
 
-    initKey( aeroKey );
+    stringstream ss ;
+    ss << aeroKeyStr << i;
+    
+    initKey( aeroKey, ss.str() );
 
     if( aerospike_key_put( &as, &err, NULL, &aeroKey, &record ) != AEROSPIKE_OK ) {
         cout << "there is some problems, I can not put record into aerospike!" << endl;
@@ -119,10 +138,13 @@ int main( int argc, char * argv [] ) {
         exit( -1 );
     }
 
-    dumpRecord( pRec );
+    //dumpRecord( pRec );
 
     as_record_destroy( pRec );
     }
+    clock_t end = clock();
+    double elapsed = (double)(end - start) * 1000 / CLOCKS_PER_SEC;
+    cout << "Time is : " << elapsed << " ms for 10w records" <<endl; 
 
     return 0;
 }
